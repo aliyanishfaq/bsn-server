@@ -39,7 +39,8 @@ app.add_middleware(
                    "http://34.44.107.80:5173",
                    "http://localhost:3001",
                    "http://localhost:3000",
-                   "https://client-next-supabase.vercel.app"],  # List of allowed origins
+                   "https://client-next-supabase.vercel.app",
+                   "https://buildsync-playground.app"],  # List of allowed origins
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers

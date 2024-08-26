@@ -4,7 +4,7 @@ import socketio
 
 # Create a Socket.IO server allowing CORS for specific origins
 sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins=[
-                           "http://localhost:5173", "http://34.44.107.80:5173", "http://localhost:3001", "http://localhost:3000", "https://client-next-supabase.vercel.app"])
+                           "http://localhost:5173", "http://34.44.107.80:5173", "http://localhost:3001", "http://localhost:3000", "https://client-next-supabase.vercel.app", "https://buildsync-playground.app"])
 
 
 @sio.event
