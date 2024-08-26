@@ -106,6 +106,7 @@ async def userAction(sid, data):
 async def fileChange(sid, data):
     print('File change received:', data)
     file_name = data['file_name']
+    print(f"Emitting fileChange event. SID: {sid}, File Name: {file_name}")
     await sio.emit('fileChange', {'userId': sid, 'file_name': file_name})
 
 

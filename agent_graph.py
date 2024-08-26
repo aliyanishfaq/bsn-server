@@ -276,6 +276,7 @@ async def model_streamer(data: dict, unique_hash: str):
             )
             message = f"Starting tool: {event.get('name')} with inputs: {event.get('data').get('input')}"
             asyncio.run_coroutine_threadsafe(
+                print("emitting toolStart"),
                 sio.emit('toolStart', {'word': message, 'hash': unique_hash}), loop)
 
         elif kind == "on_tool_end":
