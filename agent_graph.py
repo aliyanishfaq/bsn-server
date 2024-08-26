@@ -287,10 +287,12 @@ async def model_streamer(data: dict, unique_hash: str):
             if bool(event.get('data').get('output')) is True:
                 message = f"{event.get('name')} execution successfully completed"
                 asyncio.run_coroutine_threadsafe(
+                    print("emitting toolEnd"),
                     sio.emit('toolEnd', {'word': message, 'hash': unique_hash}), loop)
             else:
                 message = f"{event.get('name')} execution failed"
             asyncio.run_coroutine_threadsafe(
+                print("emitting fileChange"),
                 sio.emit('fileChange', {
                     'userId': 'BuildSync', 'message': 'A new change has been made to the file', 'file_name': 'public/canvas.ifc'}), loop)
         elif kind == "on_chain_start":
