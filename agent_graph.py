@@ -245,7 +245,7 @@ async def stream_with_backoff(data: dict, config: dict):
         yield event
 
 
-async def model_streamer(data: dict, unique_hash: str):
+async def model_streamer(sid, data: dict, unique_hash: str):
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
@@ -286,6 +286,8 @@ async def model_streamer(data: dict, unique_hash: str):
                 await sio.emit('toolEnd', {'word': message, 'hash': unique_hash})
             else:
                 message = f"{event.get('name')} execution failed"
+            print("emitting fileChange")
+            print("SID: ", sid)
             await sio.emit('fileChange', {'userId': 'BuildSync', 'message': 'A new change has been made to the file', 'file_name': 'public/canvas.ifc'})
         elif kind == "on_chain_start":
             # print("event_data", event['data'])

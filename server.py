@@ -98,7 +98,7 @@ async def userAction(sid, data):
         print(f"Generated unique hash: {unique_hash}")
 
         await sio.emit('aiActionStart', {'hash':  unique_hash})
-        await model_streamer(data, unique_hash)
+        await model_streamer(sid, data, unique_hash)
         await sio.emit('aiActionEnd', {'hash': unique_hash})
 
 
