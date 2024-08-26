@@ -261,8 +261,7 @@ async def model_streamer(data: dict, unique_hash: str):
                 message = event.get('data').get('chunk').content[0].get('text')
                 # print("on_chat_stream", message)
                 if message:
-                    asyncio.run_coroutine_threadsafe(
-                        sio.emit('aiAction', {'word': message, 'hash': unique_hash, 'tools_end': tools_end}), loop)
+                    await sio.emit('aiAction', {'word': message, 'hash': unique_hash, 'tools_end': tools_end})
             except (KeyError, IndexError, TypeError, AttributeError) as e:
                 print(e)
         elif kind == "on_chat_model_end":
@@ -275,9 +274,7 @@ async def model_streamer(data: dict, unique_hash: str):
                 f"Starting tool: {event.get('name')} with inputs: {event.get('data').get('input')}"
             )
             message = f"Starting tool: {event.get('name')} with inputs: {event.get('data').get('input')}"
-            asyncio.run_coroutine_threadsafe(
-                print("emitting toolStart"),
-                sio.emit('toolStart', {'word': message, 'hash': unique_hash}), loop)
+            await sio.emit('toolStart', {'word': message, 'hash': unique_hash})
 
         elif kind == "on_tool_end":
             tools_end = True
@@ -286,15 +283,11 @@ async def model_streamer(data: dict, unique_hash: str):
             message = f"{event.get('name')} execution successfully completed"
             if bool(event.get('data').get('output')) is True:
                 message = f"{event.get('name')} execution successfully completed"
-                asyncio.run_coroutine_threadsafe(
-                    print("emitting toolEnd"),
-                    sio.emit('toolEnd', {'word': message, 'hash': unique_hash}), loop)
+                await sio.emit('toolEnd', {'word': message, 'hash': unique_hash})
             else:
                 message = f"{event.get('name')} execution failed"
-            asyncio.run_coroutine_threadsafe(
-                print("emitting fileChange"),
-                sio.emit('fileChange', {
-                    'userId': 'BuildSync', 'message': 'A new change has been made to the file', 'file_name': 'public/canvas.ifc'}), loop)
+                await sio.emit('fileChange', {
+                    'userId': 'BuildSync', 'message': 'A new change has been made to the file', 'file_name': 'public/canvas.ifc'})
         elif kind == "on_chain_start":
             # print("event_data", event['data'])
             try:
@@ -305,8 +298,7 @@ async def model_streamer(data: dict, unique_hash: str):
                     # print("message object", message_object)
                     message = message_object[0]['text']
                     # print("on_chain_start message", message)
-                    asyncio.run_coroutine_threadsafe(
-                        sio.emit('chainStart', {'word': message, 'hash': unique_hash, 'tools_end': tools_end}), loop)
+                    await sio.emit('chainStart', {'word': message, 'hash': unique_hash, 'tools_end': tools_end})
             except (KeyError, IndexError, TypeError, AttributeError) as e:
                 print(e)
         elif kind == "on_chain_end":
@@ -322,8 +314,7 @@ async def model_streamer(data: dict, unique_hash: str):
                     print("message object", message_content)
                     message = message_content[0]['text']
                     print("on_chain_end message", message)
-                    asyncio.run_coroutine_threadsafe(
-                        sio.emit('chainStart', {'word': message, 'hash': unique_hash, 'tools_end': tools_end}), loop)
+                    await sio.emit('chainStart', {'word': message, 'hash': unique_hash, 'tools_end': tools_end})
             except (KeyError, IndexError, TypeError, AttributeError) as e:
                 print(e)
         elif kind == "on_chain_stream":
