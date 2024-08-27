@@ -52,7 +52,7 @@ async def create_on_start():
             filename=None
         )
         IFC_MODEL = ifc_model
-        ifc_model.save_ifc("public/canvas.ifc")
+        ifc_model.save_ifc("tmp/canvas.ifc")
         return True
         # 2. Errors out if necessary.
     except Exception as e:
@@ -79,7 +79,7 @@ def create_session() -> bool:
             filename=None
         )
         IFC_MODEL = ifc_model
-        ifc_model.save_ifc("public/canvas.ifc")
+        ifc_model.save_ifc("tmp/canvas.ifc")
         return True
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -101,7 +101,7 @@ def create_building_story(elevation: float = 0.0, name: str = "Level 1") -> bool
     try:
         # 1. Create the building story
         IFC_MODEL.create_building_stories(elevation, name)
-        IFC_MODEL.save_ifc("public/canvas.ifc")
+        IFC_MODEL.save_ifc("tmp/canvas.ifc")
 
         # 2. Update the global dictionary
         levels_dict[name] = elevation
@@ -192,7 +192,7 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
         IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
         ), owner_history, "Building story Container", None, [bm], story)
 
-        IFC_MODEL.save_ifc("public/canvas.ifc")
+        IFC_MODEL.save_ifc("tmp/canvas.ifc")
         return True
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -282,7 +282,7 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
             IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
             ), owner_history, "Building story Container", None, [bm], story)
 
-            IFC_MODEL.save_ifc("public/canvas.ifc")
+            IFC_MODEL.save_ifc("tmp/canvas.ifc")
             return True
         except Exception as e:
             print(f"An error occurred: {e}")
@@ -333,7 +333,7 @@ def create_column(story_n: int = 1, start_coord: str = "0,0,0", height: float = 
         ), owner_history, "Building story Container", None, [column], story)
 
         # 7. Save structure
-        IFC_MODEL.save_ifc("public/canvas.ifc")
+        IFC_MODEL.save_ifc("tmp/canvas.ifc")
         return True
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -484,7 +484,7 @@ def create_grid(grids_x_distance_between: float = 10.0, grids_y_distance_between
 
         print("Grid creation completed.")
 
-        IFC_MODEL.save_ifc("public/canvas.ifc")
+        IFC_MODEL.save_ifc("tmp/canvas.ifc")
         return True
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -544,7 +544,7 @@ def create_wall(story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = 
             IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
             ), owner_history, "Building story Container", None, [wall], story)
 
-            IFC_MODEL.save_ifc("public/canvas.ifc")
+            IFC_MODEL.save_ifc("tmp/canvas.ifc")
         return True
     except Exception as e:
         print(f"Error creating wall: {e}")
@@ -586,7 +586,7 @@ def create_isolated_footing(story_n: int = 1, location: tuple = (0.0, 0.0, 0.0),
             ), owner_history, "Building story Container", None, [footing], story)
 
         # Save structure
-        IFC_MODEL.save_ifc("public/canvas.ifc")
+        IFC_MODEL.save_ifc("tmp/canvas.ifc")
         retrieval_tool = parse_ifc()
 
         return True
@@ -630,7 +630,7 @@ def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0),
             ), owner_history, "Building story Container", None, [footing], story)
 
         # Save structure
-        IFC_MODEL.save_ifc("public/canvas.ifc")
+        IFC_MODEL.save_ifc("tmp/canvas.ifc")
         retrieval_tool = parse_ifc()
 
         return True
@@ -657,7 +657,7 @@ def create_void_in_wall(host_element, void_placement, width, height, depth):
         void_element = IFC_MODEL.create_void_in_wall(host_element, void_placement, width, height, depth)
         
         # Save structure
-        IFC_MODEL.save_ifc("public/canvas.ifc")
+        IFC_MODEL.save_ifc("tmp/canvas.ifc")
         retrieval_tool = parse_ifc()
         
         print("Void created and committed to the IFC file successfully.")
@@ -783,7 +783,7 @@ def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 
 
         # 9. Save the structure
         try:
-            IFC_MODEL.save_ifc("public/canvas.ifc")
+            IFC_MODEL.save_ifc("tmp/canvas.ifc")
         except Exception as e:
             print(f"Error saving structure: {e}")
             raise
@@ -974,7 +974,7 @@ def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (1
 
         try:
             # 10. Save structure
-            IFC_MODEL.save_ifc("public/canvas.ifc")
+            IFC_MODEL.save_ifc("tmp/canvas.ifc")
         except Exception as e:
             print(f"Error saving IFC file: {e}")
             raise
@@ -1020,7 +1020,7 @@ def create_isolated_footing(story_n: int = 1, location: tuple = (0.0, 0.0, 0.0),
             ), owner_history, "Building story Container", None, [footing], story)
 
         # Save structure
-        IFC_MODEL.save_ifc("public/canvas.ifc")
+        IFC_MODEL.save_ifc("tmp/canvas.ifc")
         retrieval_tool = parse_ifc()
 
         return True
@@ -1064,7 +1064,7 @@ def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0),
             ), owner_history, "Building story Container", None, [footing], story)
 
         # Save structure
-        IFC_MODEL.save_ifc("public/canvas.ifc")
+        IFC_MODEL.save_ifc("tmp/canvas.ifc")
         retrieval_tool = parse_ifc()
 
         return True
@@ -1091,7 +1091,7 @@ def create_void_in_wall(host_element, void_placement, width, height, depth):
         void_element = IFC_MODEL.create_void_in_wall(host_element, void_placement, width, height, depth)
         
         # Save structure
-        IFC_MODEL.save_ifc("public/canvas.ifc")
+        IFC_MODEL.save_ifc("tmp/canvas.ifc")
         retrieval_tool = parse_ifc()
         
         print("Void created and committed to the IFC file successfully.")
@@ -1110,7 +1110,7 @@ def search_canvas(search_query: str, search_file: str = 'canvas.ifc') -> str:
     """
     global client
     try:
-        loaded_file = ifcopenshell.open('public/' + search_file)
+        loaded_file = ifcopenshell.open('tmp/' + search_file)
         res = client.chat.completions.create(
             model='gpt-4o',
             response_format={"type": "json_object"},
@@ -1210,7 +1210,7 @@ def delete_objects(delete_query: str) -> bool:
             for object_id in objects_ids_list:
                 ifc_object = IFC_MODEL.ifcfile.by_guid(object_id)
                 IFC_MODEL.ifcfile.remove(ifc_object)
-                IFC_MODEL.save_ifc("public/canvas.ifc")
+                IFC_MODEL.save_ifc("tmp/canvas.ifc")
             return True
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -1225,7 +1225,7 @@ def refresh_canvas() -> bool:
     The function is invoked when user types in 'refresh', 'refresh canvas' or 'refresh the canvas'
     """
     try:
-        sio.emit('fileChange', {'userId': 'BuildSync', 'message': 'A new change has been made to the file', 'file_name': 'public/canvas.ifc'})
+        sio.emit('fileChange', {'userId': 'BuildSync', 'message': 'A new change has been made to the file', 'file_name': 'tmp/canvas.ifc'})
         return True
     except Exception as e:
         print(f"An error occurred: {e}")
