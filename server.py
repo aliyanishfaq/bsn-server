@@ -86,20 +86,78 @@ async def upload_file(file: UploadFile = File(...), sid: str = Header(None)):
             status_code=500, detail=f"File upload failed: {str(e)}")
 
 
+# Dictionary containing prompt outputs for specific commands
+prompt_output_dict = {
+    "/create new": """""",
+    "/create an L-shaped building 3x6 grid of 12ft columns spaced 18ft apart, with 2x2 wing": """""",
+    "/connect all tops of columns with beams in both directions.": """""",
+    "/add floors and replicate this structure to second floor": """""",
+    "/add another 3 stories & copy the 3x6 wing up to these new levels": """""",
+    "/add roof and walls around structure. Let the roof have a 10ft overhang at the bottom of the L-shape": """""",
+    "/add two kickers to support the overhang. They should connect to the overhang at 2ft away from the edge and be supported at the bottom of level 4.": """""",
+    "/create this image as BIM": """""",
+}
+
+
+
 @ sio.event
 async def userAction(sid, data):
-    print('User Action recieved')
+    # Log that a user action has been received
+    print('User Action received')
+    # Emit the user action event to all connected clients
     await sio.emit('userAction', data)
+    # Extract the user command from the received data
     user_command = data['message']
-    if True: #user_command.startswith('/')
-        unique_string = f"{user_command}-{time.time()}"
-        unique_hash = "ai-" + \
-            hashlib.sha256(unique_string.encode()).hexdigest()
-        print(f"Generated unique hash: {unique_hash}")
+    print('User command:', user_command)
+    # Check if the user command starts with a '/'
+    if user_command.startswith('/'):
+        # Get the first three words of the user command
+        first_three_words = ' '.join(user_command.split()[:3])
 
-        await sio.emit('aiActionStart', {'hash':  unique_hash})
-        await model_streamer(sid, data, unique_hash)
-        await sio.emit('aiActionEnd', {'hash': unique_hash})
+        # Check if the first three words exactly match any key in prompt_output_dict
+        matching_prompt = next((key for key in prompt_output_dict if key.startswith(first_three_words) and len(
+            key.split()) >= 3 and ' '.join(key.split()[:3]) == first_three_words), None)
+
+        # If a matching prompt is found
+        if matching_prompt:
+            # Use the matching prompt's output as the agent's prompt
+            agent_prompt = user_command + \
+                "YOU ARE IN DEMO MODE, USE DEMO FUNCTIONS WHERE NECESSARY."
+
+            if "image" in matching_prompt:
+                agent_prompt = user_command + \
+                    "If there's no image, pretend there is. ONLY USE FUNCTIONS THAT START WITH 'image_to_bim'"
+            # Generate a unique string using the agent's prompt and current time
+            unique_string = f"{agent_prompt}-{time.time()}"
+            # Generate a unique hash from the unique string
+            unique_hash = "ai-" + \
+                hashlib.sha256(unique_string.encode()).hexdigest()
+            # Log the generated unique hash
+            print(f"Generated unique hash: {unique_hash}")
+            # Log the generated unique string
+            print(f"Generated unique string: {unique_string}")
+            # Emit the aiActionStart event with the unique hash
+            await sio.emit('aiActionStart', {'hash':  unique_hash})
+            # Call the model_streamer function with the data and unique hash
+            await model_streamer(str(data), unique_hash)
+            # Emit the aiActionEnd event with the unique hash
+            await sio.emit('aiActionEnd', {'hash': unique_hash})
+        else:
+            # If no matching prompt is found, use the original user command
+            # Generate a unique string using the user command and current time
+            unique_string = f"{user_command}-{time.time()}"
+            # Generate a unique hash from the unique string
+            unique_hash = "ai-" + \
+                hashlib.sha256(unique_string.encode()).hexdigest()
+            # Log the generated unique hash
+            print(f"Generated unique hash: {unique_hash}")
+
+            # Emit the aiActionStart event with the unique hash
+            await sio.emit('aiActionStart', {'hash':  unique_hash})
+            # Call the model_streamer function with the data and unique hash
+            await model_streamer(sid, str(data), unique_hash)
+            # Emit the aiActionEnd event with the unique hash
+            await sio.emit('aiActionEnd', {'hash': unique_hash})
 
 
 @ sio.event

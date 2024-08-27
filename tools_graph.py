@@ -32,17 +32,15 @@ X = 1., 0., 0.
 Y = 0., 1., 0.
 Z = 0., 0., 1.
 
-
 @tool
 async def create_on_start():
     """
     Creates a new IFC model for the user.
     """
     global IFC_MODEL
-    # 1. Tries to make the IFC model.
+    # global retrieval_tool
     try:
         print('Creating a new IFC model')
-        # 2. Writes info in the IFC model.
         ifc_model = IfcModel(
             creator="Aliyan",
             organization="BuildSync",
@@ -54,7 +52,6 @@ async def create_on_start():
         IFC_MODEL = ifc_model
         ifc_model.save_ifc("public/canvas.ifc")
         return True
-        # 2. Errors out if necessary.
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
@@ -66,9 +63,8 @@ def create_session() -> bool:
     Creates a new IFC model for the user.
     """
     global IFC_MODEL
-    # 1. Tries to make the session.
+    # global retrieval_tool
     try:
-        # 2. Writes info in the IFC model.
         print('Creating a new IFC model')
         ifc_model = IfcModel(
             creator="Aliyan",
@@ -87,23 +83,23 @@ def create_session() -> bool:
 
 
 @tool
-def create_building_story(elevation: float = 0.0, name: str = "Level 1") -> bool:
+def create_building_storey(elevation: float = 0.0, name: str = "Level 1") -> bool:
     """
-    Creates building stories with the specified amount, elevation, and height.
+    Creates building storeys with the specified amount, elevation, and height.
 
     Parameters:
-    - elevation (float): The elevation of the building stories in feet. If there are already stories been created, then this is the elevation of the tallest building story
+    - elevation (float): The elevation of the building storeys in feet. If there are already storeys been created, then this is the elevation of the tallest building storey
     - name (string): The name of the elevation. Name of each story should be unique.
     """
     global retrieval_tool
     global levels_dict
 
     try:
-        # 1. Create the building story
-        IFC_MODEL.create_building_stories(elevation, name)
+        # Create the building storey
+        IFC_MODEL.create_building_storeys(elevation, name)
         IFC_MODEL.save_ifc("public/canvas.ifc")
 
-        # 2. Update the global dictionary
+        # Update the global dictionary
         levels_dict[name] = elevation
 
         return True
@@ -112,8 +108,7 @@ def create_building_story(elevation: float = 0.0, name: str = "Level 1") -> bool
         raise
 
 
-@tool
-def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_name: str = 'W16X40', story_n: int = 1) -> None:
+def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_name: str = 'W16X40', storey_n: int = 1) -> None:
     """
     Creates a beam at the specified start coordinate with the given dimensions.
 
@@ -121,35 +116,36 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
     - start_coord (str): The (x, y, z) coordinates of the beam's start point in the format "x,y,z".
     - end_coord (str): The (x, y, z) coordinates of the beam's end point in the format "x,y,z".
     - section_name (str): The beam profile name (e.g. W16X40).
-    - story_n (int): The story number that the user wants to place the beam on
+    - storey_n (int): The storey number that the user wants to place the beam on
     """
+    # global retrieval_tool
     try:
 
-        # 1. Format coord and direction
+        # format coord and direction
         start_coord = tuple(map(float, start_coord.split(',')))
         end_coord = tuple(map(float, end_coord.split(',')))
 
         direction = IFC_MODEL.calc_direction(start_coord, end_coord)
         length = IFC_MODEL.calc_length(start_coord, end_coord)
 
-        # 2. Setup the IFC model.
+        # IFC model setup
         context = IFC_MODEL.ifcfile.by_type(
             "IfcGeometricRepresentationContext")[0]
         owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
-        if len(IFC_MODEL.building_story_list) < story_n:
-            IFC_MODEL.create_building_stories(
+        if len(IFC_MODEL.building_storey_list) < storey_n:
+            IFC_MODEL.create_building_storeys(
                 elevation=0, name="Level 1")
-        story = IFC_MODEL.building_story_list[story_n - 1]
+        storey = IFC_MODEL.building_storey_list[storey_n - 1]
 
-        # 3. Initiate beam creation.
+        # 0. Initiate IfcBeam
         # Note: eventually, we'll want to pass in various beam names.
         bm = IFC_MODEL.ifcfile.createIfcBeam(
             IFC_MODEL.create_guid(), owner_history, "Beam")
 
-        # 4. Define beam placement
+        # 1-3. Define beam placement
         Z = (0.0, 0.0, 1.0)
 
-        # 4-1. Define beam starting point, hosting axis, & direction.
+        # 1. Define beam starting point, hosting axis, & direction.
         bm_axis2placement = IFC_MODEL.ifcfile.createIfcAxis2Placement3D(
             IFC_MODEL.ifcfile.createIfcCartesianPoint(start_coord))
         bm_axis2placement.Axis = IFC_MODEL.ifcfile.createIfcDirection(
@@ -159,16 +155,16 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
         bm_axis2placement.RefDirection = IFC_MODEL.ifcfile.createIfcDirection(
             crossprod)
 
-        # 4-2. Create LocalPlacement for beam.
+        # 2. Create LocalPlacement for beam.
         bm_placement = IFC_MODEL.ifcfile.createIfcLocalPlacement(
-            story, bm_axis2placement)  # can pass building stories as host
+            storey, bm_axis2placement)  # can pass building stories as host
         bm.ObjectPlacement = bm_placement
 
-        # 4-3. Create 3D axis placement for extrusion.
+        # 3. Create 3D axis placement for extrusion.
         bm_extrudePlacement = IFC_MODEL.ifcfile.createIfcAxis2Placement3D(
             IFC_MODEL.ifcfile.createIfcCartesianPoint((0., 0., 0.)))
 
-        # 4-4. Create extruded area section for beam.
+        # 4. Create extruded area section for beam.
         bm_extrusion = IFC_MODEL.ifcfile.createIfcExtrudedAreaSolid()
         ifcclosedprofile = IFC_MODEL.get_wshape_profile(section_name)
         ifcclosedprofile.ProfileName = section_name
@@ -190,7 +186,7 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
 
         # 7. Add beam to IFC file & save
         IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-        ), owner_history, "Building story Container", None, [bm], story)
+        ), owner_history, "Building Storey Container", None, [bm], storey)
 
         IFC_MODEL.save_ifc("public/canvas.ifc")
         return True
@@ -201,8 +197,8 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
 
 """
     @tool
-    def create_beam(length: float = 10.0, start_coord: str = "0,0,0", direction: tuple = "1,0,0", section_name: str = 'W16X40', story_n: int = 1) -> bool:
-        
+    def create_beam(length: float = 10.0, start_coord: str = "0,0,0", direction: tuple = "1,0,0", section_name: str = 'W16X40', storey_n: int = 1) -> bool:
+
         Creates a beam at the specified start coordinate with the given dimensions.
 
         Parameters:
@@ -210,7 +206,7 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
         - start_coord (str): The (x, y, z) coordinates of the beam's start point in the format "x,y,z".
         - direction (str): The direction the beam faces in the format "x,y,z". The default is X direction
         - section_name (str): The beam profile name (e.g. W16X40).
-        
+
         global retrieval_tool
 
         try:
@@ -221,11 +217,12 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
             print(start_coord, direction)
 
             # IFC model setup
-            context = IFC_MODEL.ifcfile.by_type("IfcGeometricRepresentationContext")[0]
+            context = IFC_MODEL.ifcfile.by_type(
+                "IfcGeometricRepresentationContext")[0]
             owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
-            if len(IFC_MODEL.building_story_list) < story_n:
-                IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
-            story = IFC_MODEL.building_story_list[story_n - 1]
+            if len(IFC_MODEL.building_storey_list) < storey_n:
+                IFC_MODEL.create_building_storeys(0.0, f"Level {storey_n}")
+            storey = IFC_MODEL.building_storey_list[storey_n - 1]
 
             # 0. Initiate IfcBeam
             # Note: eventually, we'll want to pass in various beam names.
@@ -238,7 +235,8 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
             # 1. Define beam starting point, hosting axis, & direction.
             bm_axis2placement = IFC_MODEL.ifcfile.createIfcAxis2Placement3D(
                 IFC_MODEL.ifcfile.createIfcCartesianPoint(start_coord))
-            bm_axis2placement.Axis = IFC_MODEL.ifcfile.createIfcDirection(direction)
+            bm_axis2placement.Axis = IFC_MODEL.ifcfile.createIfcDirection(
+                direction)
 
             # Calculate cross product & convert np.float64 to Python float
             crossprod = tuple(np.cross(direction, Z))
@@ -246,14 +244,15 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
             # modify the elements from np.float64 to Python float
             for i in range(len(crossprod_list)):
                 crossprod_list[i] = float(crossprod_list[i])
-            crossprod = tuple(crossprod_list)  # convert the list back to a tuple
+            # convert the list back to a tuple
+            crossprod = tuple(crossprod_list)
 
             bm_axis2placement.RefDirection = IFC_MODEL.ifcfile.createIfcDirection(
                 crossprod)
 
             # 2. Create LocalPlacement for beam.
             bm_placement = IFC_MODEL.ifcfile.createIfcLocalPlacement(
-                story, bm_axis2placement)  # can pass building stories as host
+                storey, bm_axis2placement)  # can pass building stories as host
             bm.ObjectPlacement = bm_placement
 
             # 3. Create 3D axis placement for extrusion.
@@ -280,7 +279,7 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
 
             # 7. Add beam to IFC file & save
             IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-            ), owner_history, "Building story Container", None, [bm], story)
+            ), owner_history, "Building Storey Container", None, [bm], storey)
 
             IFC_MODEL.save_ifc("public/canvas.ifc")
             return True
@@ -290,49 +289,48 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
 """
 
 
-@tool
-def create_column(story_n: int = 1, start_coord: str = "0,0,0", height: float = 30, section_name: str = "W12X53") -> bool:
+def create_column(storey_n: int = 1, start_coord: str = "0,0,0", height: float = 12, section_name: str = "W12X53") -> bool:
     """
     Creates a single column in the Revit document based on specified location, width, depth, and height.
 
     Parameters:
-    - story_n (int): The story number that the user wants to place the column on
+    - storey_n (int): The storey number that the user wants to place the column on
     - start_coord (str): The (x, y, z) coordinates of the column's location in the format "x,y,z".
     - height (float): The height of the column in feet.
     - section_name (string): The name of the column type.
     """
     # global retrieval_tool
     try:
-        # 1. Get the appropriate story and its elevation.
-        if len(IFC_MODEL.building_story_list) < story_n:
-            IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
-        story = IFC_MODEL.building_story_list[story_n - 1]
-        elevation = (story.Elevation)
+        # first get the appropriate storey and its elevation, etc
+        if len(IFC_MODEL.building_storey_list) < storey_n:
+            IFC_MODEL.create_building_storeys(0.0, f"Level {storey_n}")
+        storey = IFC_MODEL.building_storey_list[storey_n - 1]
+        elevation = (storey.Elevation)
 
-        # 2. Populate the coordinates.
+        # populate the coordinate
         start_coord = list(map(float, start_coord.split(',')))
         start_coord[2] = elevation
         start_coord = tuple(start_coord)
 
-        # 3. Set up the IFC model.
+        # IFC model setup
         context = IFC_MODEL.ifcfile.by_type(
             "IfcGeometricRepresentationContext")[0]
         owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
 
-        # 4. Get the story's placement.
-        story_placement = story.ObjectPlacement
+        # Get the storey's placement
+        storey_placement = storey.ObjectPlacement
 
-        # 5. Create the column placement.
+        # Create the column placement
         column_placement = IFC_MODEL.create_ifclocalplacement(
-            start_coord, Z, X, relative_to=story_placement)
+            start_coord, Z, X, relative_to=storey_placement)
 
-        # 6. Create the column.
+        # Create the column
         column = IFC_MODEL.create_column(
             context=context, owner_history=owner_history, column_placement=column_placement, height=height, section_name=section_name)
         IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-        ), owner_history, "Building story Container", None, [column], story)
+        ), owner_history, "Building Storey Container", None, [column], storey)
 
-        # 7. Save structure
+        # Save structure
         IFC_MODEL.save_ifc("public/canvas.ifc")
         return True
     except Exception as e:
@@ -442,8 +440,8 @@ def create_grid(grids_x_distance_between: float = 10.0, grids_y_distance_between
             X)
 
         grid_placement = IFC_MODEL.ifcfile.createIfcLocalPlacement()
-        print(f"IFC story PLACEMENT: {IFC_MODEL.story_placement}")
-        grid_placement.PlacementRelTo = IFC_MODEL.story_placement
+        print(f"IFC STOREY PLACEMENT: {IFC_MODEL.storey_placement}")
+        grid_placement.PlacementRelTo = IFC_MODEL.storey_placement
         grid_placement.RelativePlacement = myGridCoordinateSystem
 
         print(f"Grid Placement: {grid_placement}")
@@ -476,8 +474,8 @@ def create_grid(grids_x_distance_between: float = 10.0, grids_y_distance_between
         print("Creating container spatial structure...")
         container_SpatialStructure = IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(
             IFC_MODEL.create_guid(), IFC_MODEL.owner_history)
-        container_SpatialStructure.Name = 'BuildingstoryContainer'
-        container_SpatialStructure.Description = 'BuildingstoryContainer for Elements'
+        container_SpatialStructure.Name = 'BuildingStoreyContainer'
+        container_SpatialStructure.Description = 'BuildingStoreyContainer for Elements'
         container_SpatialStructure.RelatingStructure = IFC_MODEL.site
         container_SpatialStructure.RelatedElements = [myGrid]
         print(f"Container Spatial Structure: {container_SpatialStructure}")
@@ -491,34 +489,33 @@ def create_grid(grids_x_distance_between: float = 10.0, grids_y_distance_between
         raise
 
 
-@tool
-def create_wall(story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = "0,0,0", height: float = 30.0, thickness: float = 1.0) -> bool:
+def create_wall(storey_n: int = 1, start_coord: str = "10,0,0", end_coord: str = "0,0,0", height: float = 30.0, thickness: float = 1.0) -> bool:
     """
     Creates a single wall in the Revit document based on specified start and end coordinates, level, wall type, structural flag, height, and thickness.
 
     Parameters:
-    - story_n (int): The story number that the user wants to place the column on
+    - storey_n (int): The storey number that the user wants to place the column on
     - start_coord (str): The (x, y, z) coordinates of the wall's start point in the format "x,y,z".
     - end_coord (str): The (x, y, z) coordinates of the wall's end point in the format "x,y,z".
-    - height (float): The height of the wall. The default should be each story's respective elevations.
+    - height (float): The height of the wall. The default should be each storey's respective elevations.
     - thickness (float): The thickness of the wall in ft.
     """
     # global retrieval_tool
     try:
-        if len(IFC_MODEL.building_story_list) < story_n:
-            IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
+        if len(IFC_MODEL.building_storey_list) < storey_n:
+            IFC_MODEL.create_building_storeys(0.0, f"Level {storey_n}")
 
-        story = IFC_MODEL.building_story_list[story_n - 1]
-        elevation = (story.Elevation)
-        story_placement = story.ObjectPlacement
+        storey = IFC_MODEL.building_storey_list[storey_n - 1]
+        elevation = (storey.Elevation)
+        storey_placement = storey.ObjectPlacement
 
-        # 1. Populate the coordinates for start and end
+        # populate the coordinates for start and end
         start_coord, end_coord = list(map(float, start_coord.split(','))), list(tuple(
             map(float, end_coord.split(','))))
         start_coord[2], end_coord[2] = elevation, elevation
         start_coord, end_coord = tuple(start_coord), tuple(end_coord)
 
-        # 2. Calculate the wall length and direction
+        # Calculate the wall length and direction
         length = ((end_coord[0] - start_coord[0]) ** 2 +
                   (end_coord[1] - start_coord[1]) ** 2) ** 0.5
 
@@ -531,18 +528,18 @@ def create_wall(story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = 
                 0.0  # z component remains 0 as we're dealing with a 2D plane
             )
 
-            # 3. IFC model setup
+            # IFC model setup
             context = IFC_MODEL.ifcfile.by_type(
                 "IfcGeometricRepresentationContext")[0]
             owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
-            # 4. Create the wall placement with correct direction
+            # Create the wall placement with correct direction
             wall_placement = IFC_MODEL.create_ifclocalplacement(
-                start_coord, Z, direction, relative_to=story_placement)
-            # 5. Create the wall
+                start_coord, Z, direction, relative_to=storey_placement)
+            # Create the wall
             wall = IFC_MODEL.create_wall(
                 context, owner_history, wall_placement, length, height, thickness)
             IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-            ), owner_history, "Building story Container", None, [wall], story)
+            ), owner_history, "Building Storey Container", None, [wall], storey)
 
             IFC_MODEL.save_ifc("public/canvas.ifc")
         return True
@@ -552,136 +549,67 @@ def create_wall(story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = 
 
 
 @tool
-def create_isolated_footing(story_n: int = 1, location: tuple = (0.0, 0.0, 0.0), length: float = 10.0, width: float = 10.0, thickness: float = 1.0) -> bool:
+def create_floor(user_request: str, storey_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 0.), (100., 100., 0.), (100., 0., 0.)], slab_thickness: float = 1.0) -> bool:
     """
-    Creates a shallow isolated structural foundation footing on the specified story.
+    Creates a floor in the specified storey with given dimensions and thickness.
 
     Parameters:
-    - story_n (int): The story number where the footing will be created.
-    - location (tuple): The (x, y, z) coordinates of the footing's location.
-    - length (float): The length of the footing.
-    - width (float): The width of the footing.
-    - thickness (float): The thickness of the footing.
-    """
-    global retrieval_tool
-    try:
-        # Get story information
-        if len(IFC_MODEL.building_story_list) < story_n:
-            IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
-
-        story = IFC_MODEL.building_story_list[story_n - 1]
-        elevation = (story.Elevation)
-        story_placement = story.ObjectPlacement
-        print(f"elevation: {elevation}")
-
-        # Adjust location Z-coordinate by adding the story's elevation
-        location = (location[0], location[1], location[2] + elevation)
-
-        # IFC model information
-        owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
-
-        # Call the function in ifc.py to create the footing
-        footing = IFC_MODEL.create_isolated_footing(location, length, width, thickness)
-        IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-            ), owner_history, "Building story Container", None, [footing], story)
-
-        # Save structure
-        IFC_MODEL.save_ifc("public/canvas.ifc")
-        retrieval_tool = parse_ifc()
-
-        return True
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        raise
-
-@tool
-def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0), end_point: tuple = (10.0, 0.0, 0.0), width: float = 1.0, depth: float = 1.0) -> bool:
-    """
-    Creates a continuous footing (strip footing) on the specified story.
-
-    Parameters:
-    - story_n (int): The story number where the footing will be created.
-    - start_point (tuple): The (x, y, z) coordinates of the start point of the footing.
-    - end_point (tuple): The (x, y, z) coordinates of the end point of the footing.
-    - width (float): The width of the footing.
-    - depth (float): The depth of the footing.
-    """
-    global retrieval_tool
-    try:
-        # Get story information
-        if len(IFC_MODEL.building_story_list) < story_n:
-            IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
-
-        story = IFC_MODEL.building_story_list[story_n - 1]
-        elevation = (story.Elevation)
-        story_placement = story.ObjectPlacement
-        print(f"elevation: {elevation}")
-
-        # Adjust start and end points Z-coordinate by adding the story's elevation
-        start_point = (start_point[0], start_point[1], start_point[2] + elevation)
-        end_point = (end_point[0], end_point[1], end_point[2] + elevation)
-
-        # IFC model information
-        owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
-
-        # Call the function in ifc.py to create the continuous footing
-        footing = IFC_MODEL.create_strip_footing(start_point, end_point, width, depth)
-        IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-            ), owner_history, "Building story Container", None, [footing], story)
-
-        # Save structure
-        IFC_MODEL.save_ifc("public/canvas.ifc")
-        retrieval_tool = parse_ifc()
-
-        return True
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        raise
-    
-
-@tool
-def create_void_in_wall(host_element, void_placement, width, height, depth):
-    """
-    Creates a void in the specified host element and commits it to the IFC file.
-
-    Parameters:
-    - host_element: The host element in which the void will be created.
-    - void_placement: The local placement of the void.
-    - void_width: The width of the void.
-    - void_height: The height of the void.
-    - void_depth: The depth of the void (thickness of the host element).
-    - ifc_file_path: The path to the IFC file to save the changes.
-    """
-    try:
-        # Call the create_void_in_wall method from the IFCModel class
-        void_element = IFC_MODEL.create_void_in_wall(host_element, void_placement, width, height, depth)
-        
-        # Save structure
-        IFC_MODEL.save_ifc("public/canvas.ifc")
-        retrieval_tool = parse_ifc()
-        
-        print("Void created and committed to the IFC file successfully.")
-        return void_element
-    except Exception as e:
-        print(f"An error occurred while creating the void: {e}")
-        raise
-        
-@tool
-def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 0.), (100., 100., 0.), (100., 0., 0.)], slab_thickness: float = 1.0) -> bool:
-    """
-    Creates a floor in the specified story with given dimensions and thickness.
-
-    Parameters:
-    - story_n (int): The story number where the slab will be created.
+    - user_request (str): The user's request message as it is.
+    - storey_n (int): The storey number where the slab will be created.
     - point_list (list): The list of points that make up the floor boundary. Each value should be a float.
     - slab_thickness (float): The thickness of the slab.
     """
     # global retrieval_tool
     try:
+        print(f"user_request: {user_request}")
+        if user_request == "/create a circular floor with 40 points":
+            storey_n = 1
+            point_list = [
+                (25.0, 0.0, 0.0),   (24.52, 4.89, 0.0),  (23.1,
+                                                          9.57, 0.0),   (20.79, 13.89, 0.0),
+                (17.68, 17.68, 0.0), (13.89, 20.79,
+                                      0.0), (9.57, 23.1, 0.0),   (4.89, 24.52, 0.0),
+                (0.0, 25.0, 0.0),    (-4.89, 24.52,
+                                      0.0), (-9.57, 23.1, 0.0),  (-13.89, 20.79, 0.0),
+                (-17.68, 17.68, 0.0), (-20.79, 13.89,
+                                       0.0), (-23.1, 9.57, 0.0),  (-24.52, 4.89, 0.0),
+                (-25.0, 0.0, 0.0),   (-24.52, -4.89,
+                                      0.0), (-23.1, -9.57, 0.0), (-20.79, -13.89, 0.0),
+                (-17.68, -17.68, 0.0), (-13.89, -20.79,
+                                        0.0), (-9.57, -23.1, 0.0), (-4.89, -24.52, 0.0),
+                (0.0, -25.0, 0.0),   (4.89, -24.52,
+                                      0.0), (9.57, -23.1, 0.0),  (13.89, -20.79, 0.0),
+                (17.68, -17.68, 0.0), (20.79, -13.89,
+                                       0.0), (23.1, -9.57, 0.0),  (24.52, -4.89, 0.0),
+                (25.0, 0.0, 0.0)
+            ]
+            slab_thickness = 1.0
+        if user_request == '/make a second story at the top of the beams and copy the circular floor up onto it':
+            storey_n = 2
+            point_list = [
+                (25.0, 0.0, 12.0),    (24.52, 4.89, 12.0),  (23.1,
+                                                             9.57, 12.0),   (20.79, 13.89, 12.0),
+                (17.68, 17.68, 12.0), (13.89, 20.79,
+                                       12.0), (9.57, 23.1, 12.0),   (4.89, 24.52, 12.0),
+                (0.0, 25.0, 12.0),    (-4.89, 24.52, 12.0), (-9.57,
+                                                             23.1, 12.0),  (-13.89, 20.79, 12.0),
+                (-17.68, 17.68, 12.0), (-20.79, 13.89,
+                                        12.0), (-23.1, 9.57, 12.0),  (-24.52, 4.89, 12.0),
+                (-25.0, 0.0, 12.0),   (-24.52, -4.89,
+                                       12.0), (-23.1, -9.57, 12.0), (-20.79, -13.89, 12.0),
+                (-17.68, -17.68, 12.0), (-13.89, -20.79,
+                                         12.0), (-9.57, -23.1, 12.0), (-4.89, -24.52, 12.0),
+                (0.0, -25.0, 12.0),   (4.89, -24.52,
+                                       12.0), (9.57, -23.1, 12.0),  (13.89, -20.79, 12.0),
+                (17.68, -17.68, 12.0), (20.79, -13.89,
+                                        12.0), (23.1, -9.57, 12.0),  (24.52, -4.89, 12.0),
+                (25.0, 0.0, 12.0)
+            ]
+            slab_thickness = 1.0
         print(
-            f"story_n: {story_n}, point_list: {point_list}, slab_thickness: {slab_thickness}")
+            f"storey_n: {storey_n}, point_list: {point_list}, slab_thickness: {slab_thickness}")
 
-        # 1. Get model information.
+        # Get model information
         try:
             context = IFC_MODEL.ifcfile.by_type(
                 "IfcGeometricRepresentationContext")[0]
@@ -696,45 +624,45 @@ def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 
             print(f"Error getting owner_history: {e}")
             raise
 
-        # 2. Get story information
+        # Get story information
         try:
-            if len(IFC_MODEL.building_story_list) < story_n:
-                IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
+            if len(IFC_MODEL.building_storey_list) < storey_n:
+                IFC_MODEL.create_building_storeys(0.0, f"Level {storey_n}")
 
-            story = IFC_MODEL.building_story_list[story_n - 1]
-            elevation = story.Elevation
-            story_placement = story.ObjectPlacement
+            storey = IFC_MODEL.building_storey_list[storey_n - 1]
+            elevation = storey.Elevation
+            storey_placement = storey.ObjectPlacement
         except Exception as e:
-            print(f"Error getting story information: {e}")
+            print(f"Error getting storey information: {e}")
             raise
 
         print(f"elevation: {elevation}")
 
-        # 3. Create slab boundary
+        # Create slab boundary
         try:
             slab = ifcopenshell.api.run(
                 "root.create_entity", IFC_MODEL.ifcfile, ifc_class="IfcSlab")
             slab.Name = "Slab"
             slab_placement = IFC_MODEL.create_ifclocalplacement(
-                (0., 0., float(elevation)), Z, X, relative_to=story_placement)
+                (0., 0., float(elevation)), Z, X, relative_to=storey_placement)
             slab.ObjectPlacement = slab_placement
 
             ifc_slabtype = ifcopenshell.api.run(
                 "root.create_entity", IFC_MODEL.ifcfile, ifc_class="IfcSlabType")
             ifcopenshell.api.run("type.assign_type", IFC_MODEL.ifcfile,
                                  related_objects=[slab], relating_type=ifc_slabtype)
-            
+
         except Exception as e:
             print(f"Error creating slab boundary: {e}")
             raise
 
-        # 4. Create points for slab boundary
+        # Create points for slab boundary
         try:
             points = [IFC_MODEL.ifcfile.createIfcCartesianPoint(
                 (x, y, z)) for x, y, z in point_list]
             points.append(points[0])  # close loop
 
-            # 5. Create boundary polyline
+            # Create boundary polyline
             slab_line = IFC_MODEL.ifcfile.createIfcPolyline(points)
             slab_profile = IFC_MODEL.ifcfile.createIfcArbitraryClosedProfileDef(
                 "AREA", None, slab_line)
@@ -743,7 +671,7 @@ def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 
             print(f"Error creating points for slab boundary: {e}")
             raise
 
-        # 6. Create local axis placement
+        # Create local axis placement
         try:
             point = IFC_MODEL.ifcfile.createIfcCartesianPoint((0.0, 0.0, 0.0))
             dir1 = IFC_MODEL.ifcfile.createIfcDirection((0., 0., 1.0))
@@ -754,7 +682,7 @@ def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 
             print(f"Error creating local axis placement: {e}")
             raise
 
-        # 7. Create extruded slab geometry
+        # Create extruded slab geometry
         try:
             extrusion = slab_thickness
             slab_solid = IFC_MODEL.ifcfile.createIfcExtrudedAreaSolid(
@@ -768,20 +696,22 @@ def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 
             raise
 
         print(
-            f"Shape Representation: {shape_representation}, IFC Slab Type: {ifc_slabtype}, IFC Slab: {slab}, story: {story}, Elevation: {elevation}, Points: {points}")
+            f"Shape Representation: {shape_representation}, IFC Slab Type: {ifc_slabtype}, IFC Slab: {slab}, Storey: {storey}, Elevation: {elevation}, Points: {points}")
 
-        # 8. Create product entity and assign to spatial container
+        # Create product entity and assign to spatial container
         try:
             ifcopenshell.api.run("geometry.assign_representation", IFC_MODEL.ifcfile,
                                  product=ifc_slabtype, representation=shape_representation)
+            # ifcopenshell.api.run("spatial.assign_container", IFC_MODEL.ifcfile,
+            #                     products=[slab], relating_structure=storey)
             IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-            ), owner_history, "Building story Container", None, [slab], story)
+            ), owner_history, "Building Storey Container", None, [slab], storey)
         except Exception as e:
             print(
                 f"Error creating product entity and assigning to spatial container: {e}")
             raise
 
-        # 9. Save the structure
+        # Save structure
         try:
             IFC_MODEL.save_ifc("public/canvas.ifc")
         except Exception as e:
@@ -795,20 +725,22 @@ def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 
 
 
 @tool
-def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (100, 100, 0), (100, 0, 0)], roof_thickness: float = 1.0) -> bool:
+def create_roof(storey_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (100, 100, 0), (100, 0, 0)], roof_thickness: float = 1.0) -> bool:
     """
-    Creates a roof on the specified story with given dimensions and thickness.
+    Creates a roof on the specified storey with given dimensions and thickness.
 
     Parameters:
-    - story_n (int): The story number where the slab will be created.
-    - point_list (list): The list of points that make up the roof boundary. The z-coordinate of the points should by default be the elevation of the story the roof is being placed at. Unless otherwise asked by the user.
-    Each point should be a tuple of three floats. Note: If roof is being called within a structure, unless otherwise specified, the z-coordinate should be the height of the elements it is being placed on e.g. if its a set of walls, the z-coordinate should be the height of the walls so if the walls are 10 feet tall, the roof should be at 10 feet. 
+    - storey_n (int): The storey number where the slab will be created.
+    - point_list (list): The list of points that make up the roof boundary. The z-coordinate of the points should by default be the elevation of the storey the roof is being placed at. Unless otherwise asked by the user.
+    Each point should be a tuple of three floats. Note: If roof is being called within a structure, unless otherwise specified, the z-coordinate should be the height of the elements it is being placed on e.g. if its a set of walls, the z-coordinate should be the height of the walls so if the walls are 10 feet tall, the roof should be at 10 feet.
     - roof_thickness (float): The thickness of the roof.
     """
+    # global retrieval_tool
     try:
-        print(f"story_n: {story_n}, point_list: {point_list}, roof_thickness: {roof_thickness}")
+        print(
+            f"storey_n: {storey_n}, point_list: {point_list}, roof_thickness: {roof_thickness}")
         try:
-            # 1. Get model information
+            # Get model information
             context = IFC_MODEL.ifcfile.by_type(
                 "IfcGeometricRepresentationContext")[0]
         except Exception as e:
@@ -823,37 +755,38 @@ def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (1
             raise
 
         try:
-            # 2. Get story information
-            if len(IFC_MODEL.building_story_list) < story_n:
-                IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
+            # Get story information
+            if len(IFC_MODEL.building_storey_list) < storey_n:
+                IFC_MODEL.create_building_storeys(0.0, f"Level {storey_n}")
         except Exception as e:
-            print(f"Error creating building stories: {e}")
+            print(f"Error creating building storeys: {e}")
             raise
 
         try:
-            story = IFC_MODEL.building_story_list[story_n - 1]
-            print(f"story: {story}")
-            print(f"story_name: {story.Name}")
+            storey = IFC_MODEL.building_storey_list[storey_n - 1]
+            print(f"storey: {storey}")
+            print(f"storey_name: {storey.Name}")
         except Exception as e:
-            print(f"Error getting story: {e}")
+            print(f"Error getting storey: {e}")
             raise
 
         try:
-            elevation = (float(story.Elevation) + float(point_list[0][2]))
+            # (float(storey.Elevation) + float(point_list[0][2]))
+            elevation = float(point_list[0][2])
         except Exception as e:
             print(f"Error getting elevation: {e}")
             raise
 
         try:
-            story_placement = story.ObjectPlacement
+            storey_placement = storey.ObjectPlacement
         except Exception as e:
-            print(f"Error getting story_placement: {e}")
+            print(f"Error getting storey_placement: {e}")
             raise
 
         print(f"elevation: {elevation}")
 
         try:
-            # 3. Create slab boundary
+            # Create slab boundary
             roof = ifcopenshell.api.run(
                 "root.create_entity", IFC_MODEL.ifcfile, ifc_class="IfcRoof")
         except Exception as e:
@@ -862,7 +795,7 @@ def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (1
 
         try:
             roof_placement = IFC_MODEL.create_ifclocalplacement(
-                (0., 0., elevation), Z, X, relative_to=story_placement)
+                (0., 0., elevation), Z, X, relative_to=storey_placement)
         except Exception as e:
             print(f"Error creating roof_placement: {e}")
             raise
@@ -874,7 +807,7 @@ def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (1
             raise
 
         try:
-            # 4. Create points for roof boundary
+            # Create points for roof boundary
             points = [IFC_MODEL.ifcfile.createIfcCartesianPoint(
                 [float(x), float(y), float(z)]) for x, y, z in point_list]
         except Exception as e:
@@ -888,7 +821,7 @@ def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (1
             raise
 
         try:
-            # 5. Create boundary polyline
+            # Create boundary polyline
             roof_line = IFC_MODEL.ifcfile.createIfcPolyline(points)
         except Exception as e:
             print(f"Error creating roof_line: {e}")
@@ -908,7 +841,7 @@ def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (1
             raise
 
         try:
-            # 6. Create local axis placement
+            # Create local axis placement
             point = IFC_MODEL.ifcfile.createIfcCartesianPoint([0.0, 0.0, 0.0])
         except Exception as e:
             print(f"Error creating point: {e}")
@@ -934,7 +867,7 @@ def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (1
             raise
 
         try:
-            # 7. Create extruded roof geometry
+            # Create extruded roof geometry
             extrusion = roof_thickness
         except Exception as e:
             print(f"Error setting extrusion: {e}")
@@ -956,28 +889,32 @@ def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (1
             print(f"Error creating shape_representation: {e}")
             raise
         try:
-            # 8. Assign representation using ifcopenshell.api.run
+            # Assign representation using ifcopenshell.api.run
             ifcopenshell.api.run("geometry.assign_representation", IFC_MODEL.ifcfile,
                                  product=roof, representation=shape_representation)
-            
+
         except Exception as e:
             print(f"Error assigning representation: {e}")
             raise
 
         try:
-            # 9. Create product entity and assign to spatial container
+            # Create product entity and assign to spatial container
+            # ifcopenshell.api.run("spatial.assign_container", IFC_MODEL.ifcfile,
+            #                     products=[roof], relating_structure=storey)
             IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-            ), owner_history, "Building story Container", None, [roof], story)
+            ), owner_history, "Building Storey Container", None, [roof], storey)
         except Exception as e:
             print(f"Error assigning container: {e}")
             raise
 
         try:
-            # 10. Save structure
+            # Save structure
             IFC_MODEL.save_ifc("public/canvas.ifc")
         except Exception as e:
             print(f"Error saving IFC file: {e}")
             raise
+
+        # retrieval_tool = parse_ifc()
 
         return True
     except Exception as e:
@@ -986,12 +923,12 @@ def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (1
 
 
 @tool
-def create_isolated_footing(story_n: int = 1, location: tuple = (0.0, 0.0, 0.0), length: float = 10.0, width: float = 10.0, thickness: float = 1.0) -> bool:
+def create_isolated_footing(storey_n: int = 1, location: tuple = (0.0, 0.0, 0.0), length: float = 10.0, width: float = 10.0, thickness: float = 1.0) -> bool:
     """
-    Creates a shallow isolated structural foundation footing on the specified story.
+    Creates a shallow isolated structural foundation footing on the specified storey.
 
     Parameters:
-    - story_n (int): The story number where the footing will be created.
+    - storey_n (int): The storey number where the footing will be created.
     - location (tuple): The (x, y, z) coordinates of the footing's location.
     - length (float): The length of the footing.
     - width (float): The width of the footing.
@@ -1000,24 +937,25 @@ def create_isolated_footing(story_n: int = 1, location: tuple = (0.0, 0.0, 0.0),
     global retrieval_tool
     try:
         # Get story information
-        if len(IFC_MODEL.building_story_list) < story_n:
-            IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
+        if len(IFC_MODEL.building_storey_list) < storey_n:
+            IFC_MODEL.create_building_storeys(0.0, f"Level {storey_n}")
 
-        story = IFC_MODEL.building_story_list[story_n - 1]
-        elevation = (story.Elevation)
-        story_placement = story.ObjectPlacement
+        storey = IFC_MODEL.building_storey_list[storey_n - 1]
+        elevation = (storey.Elevation)
+        storey_placement = storey.ObjectPlacement
         print(f"elevation: {elevation}")
 
-        # Adjust location Z-coordinate by adding the story's elevation
+        # Adjust location Z-coordinate by adding the storey's elevation
         location = (location[0], location[1], location[2] + elevation)
 
         # IFC model information
         owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
 
         # Call the function in ifc.py to create the footing
-        footing = IFC_MODEL.create_isolated_footing(location, length, width, thickness)
+        footing = IFC_MODEL.create_isolated_footing(
+            location, length, width, thickness, storey_placement)
         IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-            ), owner_history, "Building story Container", None, [footing], story)
+        ), owner_history, "Building Storey Container", None, [footing], storey)
 
         # Save structure
         IFC_MODEL.save_ifc("public/canvas.ifc")
@@ -1028,13 +966,42 @@ def create_isolated_footing(story_n: int = 1, location: tuple = (0.0, 0.0, 0.0),
         print(f"An error occurred: {e}")
         raise
 
+
 @tool
-def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0), end_point: tuple = (10.0, 0.0, 0.0), width: float = 1.0, depth: float = 1.0) -> bool:
+def create_isolated_footings(user_request) -> bool:
     """
-    Creates a continuous footing (strip footing) on the specified story.
+    Creates the beams based on the user's request. This function is used for the DEMO MODE.
 
     Parameters:
-    - story_n (int): The story number where the footing will be created.
+    - user_request (str): The user's request message .
+    """
+    print()
+    try:
+        for i in range(3):
+            for j in range(6):
+                x = i * 18.0
+                y = j * 18.0
+                create_isolated_footing(storey_n=1, location=(
+                    x, y, 0.0), length=3.0, width=3.0, thickness=1.0)
+
+        for i in range(2):
+            for j in range(2):
+                x = i * 18.0 + 54.0  # Offset to create an additional wing on the side
+                y = j * 18.0
+                create_isolated_footing(storey_n=1, location=(
+                    x, y, 0.0), length=3.0, width=3.0, thickness=1.0)
+    except Exception as e:
+        print(f"Error creating isolated footings: {e}")
+        return False
+
+
+@tool
+def create_strip_footing(storey_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0), end_point: tuple = (10.0, 0.0, 0.0), width: float = 1.0, depth: float = 1.0) -> bool:
+    """
+    Creates a continuous footing (strip footing) on the specified storey.
+
+    Parameters:
+    - storey_n (int): The storey number where the footing will be created.
     - start_point (tuple): The (x, y, z) coordinates of the start point of the footing.
     - end_point (tuple): The (x, y, z) coordinates of the end point of the footing.
     - width (float): The width of the footing.
@@ -1043,62 +1010,71 @@ def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0),
     global retrieval_tool
     try:
         # Get story information
-        if len(IFC_MODEL.building_story_list) < story_n:
-            IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
+        try:
+            if len(IFC_MODEL.building_storey_list) < storey_n:
+                IFC_MODEL.create_building_storeys(0.0, f"Level {storey_n}")
+        except Exception as e:
+            print(f"Error creating or accessing building storeys: {e}")
+            raise
 
-        story = IFC_MODEL.building_story_list[story_n - 1]
-        elevation = (story.Elevation)
-        story_placement = story.ObjectPlacement
-        print(f"elevation: {elevation}")
+        try:
+            storey = IFC_MODEL.building_storey_list[storey_n - 1]
+            elevation = (storey.Elevation)
+            storey_placement = storey.ObjectPlacement
+            print(f"elevation: {elevation}")
+        except Exception as e:
+            print(f"Error accessing storey information: {e}")
+            raise
 
-        # Adjust start and end points Z-coordinate by adding the story's elevation
-        start_point = (start_point[0], start_point[1], start_point[2] + elevation)
-        end_point = (end_point[0], end_point[1], end_point[2] + elevation)
+        # Adjust start and end points Z-coordinate by adding the storey's elevation
+        try:
+            start_point = (
+                start_point[0], start_point[1], start_point[2] + elevation)
+            end_point = (end_point[0], end_point[1], end_point[2] + elevation)
+        except Exception as e:
+            print(f"Error adjusting start and end points: {e}")
+            raise
 
         # IFC model information
-        owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
+        try:
+            owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
+        except Exception as e:
+            print(f"Error accessing IfcOwnerHistory: {e}")
+            raise
 
         # Call the function in ifc.py to create the continuous footing
-        footing = IFC_MODEL.create_strip_footing(start_point, end_point, width, depth)
-        IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-            ), owner_history, "Building story Container", None, [footing], story)
+        try:
+            footing = IFC_MODEL.create_strip_footing(
+                start_point, end_point, width, depth, storey_placement)
+        except Exception as e:
+            print(f"Error creating strip footing: {e}")
+            raise
+
+        try:
+            IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
+            ), owner_history, "Building Storey Container", None, [footing], storey)
+        except Exception as e:
+            print(f"Error creating IfcRelContainedInSpatialStructure: {e}")
+            raise
 
         # Save structure
-        IFC_MODEL.save_ifc("public/canvas.ifc")
-        retrieval_tool = parse_ifc()
+        try:
+            IFC_MODEL.save_ifc("public/canvas.ifc")
+        except Exception as e:
+            print(f"Error saving IFC file: {e}")
+            raise
+
+        try:
+            retrieval_tool = parse_ifc()
+        except Exception as e:
+            print(f"Error parsing IFC: {e}")
+            raise
 
         return True
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"An error occurred in create_strip_footing: {e}")
         raise
-    
 
-@tool
-def create_void_in_wall(host_element, void_placement, width, height, depth):
-    """
-    Creates a void in the specified host element and commits it to the IFC file.
-
-    Parameters:
-    - host_element: The host element in which the void will be created.
-    - void_placement: The local placement of the void.
-    - void_width: The width of the void.
-    - void_height: The height of the void.
-    - void_depth: The depth of the void (thickness of the host element).
-    - ifc_file_path: The path to the IFC file to save the changes.
-    """
-    try:
-        # Call the create_void_in_wall method from the IFCModel class
-        void_element = IFC_MODEL.create_void_in_wall(host_element, void_placement, width, height, depth)
-        
-        # Save structure
-        IFC_MODEL.save_ifc("public/canvas.ifc")
-        retrieval_tool = parse_ifc()
-        
-        print("Void created and committed to the IFC file successfully.")
-        return void_element
-    except Exception as e:
-        print(f"An error occurred while creating the void: {e}")
-        raise
 
 @tool
 def search_canvas(search_query: str, search_file: str = 'canvas.ifc') -> str:
@@ -1110,7 +1086,7 @@ def search_canvas(search_query: str, search_file: str = 'canvas.ifc') -> str:
     """
     global client
     try:
-        loaded_file = ifcopenshell.open('tmp/' + search_file)
+        loaded_file = ifcopenshell.open('public/' + search_file)
         res = client.chat.completions.create(
             model='gpt-4o',
             response_format={"type": "json_object"},
@@ -1120,7 +1096,7 @@ def search_canvas(search_query: str, search_file: str = 'canvas.ifc') -> str:
                     "content": """You are an AI BIM Modeler part of a larger workflow. Your task is to assist with the search the IFC file (3-D model file)
                         Specifically, you will be provided with a search query by the user. You must understand the search query and then return which IFC objects
                         the query is relevant to. You will return a JSON object with the the key as 'objects' and the value as list of all the IFC entities that are
-                        relevant. Sometimes the user request may be to delete certain objects or search for certain objects. In that case, you will return a JSON object with the the key as 'objects' 
+                        relevant. Sometimes the user request may be to delete certain objects or search for certain objects. In that case, you will return a JSON object with the the key as 'objects'
                         and the value as list of all the IFC entities that are relevant.
                         Here's the mapping of objects to their relevant IFC mapping:
                         walls -> IFCWall
@@ -1225,7 +1201,8 @@ def refresh_canvas() -> bool:
     The function is invoked when user types in 'refresh', 'refresh canvas' or 'refresh the canvas'
     """
     try:
-        sio.emit('fileChange', {'userId': 'BuildSync', 'message': 'A new change has been made to the file', 'file_name': 'public/canvas.ifc'})
+        sio.emit('fileChange', {
+                 'userId': 'BuildSync', 'message': 'A new change has been made to the file', 'file_name': 'public/canvas.ifc'})
         return True
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -1306,3 +1283,468 @@ async def element_to_text(element: object) -> str:
     str: A string describing the element in a language model-friendly way.
     """
     return "Description of element"
+
+
+@tool
+def copy_elevation(user_request: str) -> bool:
+    """
+    Copies whatever is on the specified floor onto another floor. The function does not need any parameters. It will understand the user's request. This function is used for the DEMO MODE.
+
+    Parameters:
+    - user_request (str): The user's request message.
+    """
+    print(f"user_request: {user_request}")
+    try:
+        for i in range(3):
+            for j in range(6):
+                x = i * 18.0
+                y = j * 18.0
+                create_column(1, f"{x},{y},0.0", 12, "W12X53")
+        return True
+    except Exception as e:
+        print('Error with create_columns: ', e)
+        return False
+
+
+@tool
+def create_columns(user_request: str) -> bool:
+    """
+    Creates an L shaped grid of columns based on the user's request. The function does not need any parameters. It will understand the user's request. This function is used for the DEMO MODE.
+
+    Parameters:
+    - user_request (str): The user's request message.
+    """
+    print(f"user_request: {user_request}")
+
+    # create_building_storey(elevation=0, name="Level 1")
+
+    try:
+        for i in range(3):
+            for j in range(6):
+                x = i * 18.0
+                y = j * 18.0
+                create_column(1, f"{x},{y},0.0", 12, "W12X53")
+
+        for i in range(2):
+            for j in range(2):
+                x = i * 18.0 + 54.0  # Offset to create an additional wing on the side
+                y = j * 18.0
+                create_column(1, f"{x},{y},0.0", 12, "W12X53")
+
+        return True
+    except Exception as e:
+        print('Error with create_columns: ', e)
+        return False
+
+
+@tool
+def create_beams(user_request: str) -> bool:
+    """
+    Creates the beams based on the user's request. This function is used for the DEMO MODE.
+
+    Parameters:
+    - user_request (str): The user's request message .
+    """
+    print(f"user_request: {user_request}")
+    try:
+        for i in range(3):
+            for j in range(6):
+                x = i * 18.0
+                y = j * 18.0
+                if j < 5:  # Horizontal beams
+                    create_beam(f"{x},{y},12.0",
+                                f"{x},{y + 18.0},12.0", 'W16X40', 1)
+                if i < 2:  # Vertical beams
+                    create_beam(f"{x},{y},12.0",
+                                f"{x + 18.0},{y},12.0", 'W16X40', 1)
+        for i in range(2):
+            for j in range(2):
+                x = i * 18.0 + 54.0  # Offset to create an additional wing on the side
+                y = j * 18.0
+                if j < 1:  # Horizontal beams for the additional wing
+                    create_beam(f"{x},{y},12.0",
+                                f"{x},{y + 18.0},12.0", 'W16X40', 1)
+                if i < 1:  # Vertical beams for the additional wing
+                    create_beam(f"{x},{y},12.0",
+                                f"{x + 18.0},{y},12.0", 'W16X40', 1)
+
+        for i in range(2):
+            for j in range(2):
+                x = i * 18.0 + 36.0  # Offset to create an additional wing on the side
+                y = j * 18.0
+                if j < 1:  # Horizontal beams for the additional wing
+                    create_beam(f"{x},{y},12.0",
+                                f"{x},{y + 18.0},12.0", 'W16X40', 1)
+                if i < 1:  # Vertical beams for the additional wing
+                    create_beam(f"{x},{y},12.0",
+                                f"{x + 18.0},{y},12.0", 'W16X40', 1)
+        return True
+    except Exception as e:
+        print('Error with create_beams: ', e)
+        return False
+
+
+@tool
+def create_walls(user_request: str) -> bool:
+    """
+    Creates the walls based on the user's request. This function is used for the DEMO MODE.
+    E.g. /great! from one of the column beam frames, can you add two walls that are normal to the beam and connect to the columns, 15ft long that goes into a 100ftx40ft rectangular building made of 4 walls
+
+    Parameters:
+    - user_request (str): The user's request message as it is.
+    """
+    try:
+        print(f"user_request: {user_request}")
+        # BOTTOM FLOOR
+        create_wall(1, "0,0,0", "0,90,0", 60.0, 1.0)
+        create_wall(1, "0,0,0", "36,0,0", 60.0, 1.0)
+        create_wall(1, "36,0,0", "72,0,0", 24.0, 1.0)
+        create_wall(1, "0,90,0", "36,90,0", 60.0, 1.0)
+        create_wall(1, "36,90,0", "36,0,0", 60.0, 1.0)
+        create_wall(1, "36,18,0", "72,18,0", 24.0, 1.0)
+        create_wall(1, "72,18,0", "72,0,0", 24.0, 1.0)
+
+        # # TOP FLOOR
+        # create_wall(1, "0,0,12", "0,90,12", 12.0, 1.0)
+        # create_wall(1, "0,0,12", "72,0,12", 12.0, 1.0)
+        # create_wall(1, "0,90,12", "36,90,12", 12.0, 1.0)
+        # create_wall(1, "36,90,12", "36,18,12", 12.0, 1.0)
+        # create_wall(1, "36,18,12", "72,18,12", 12.0, 1.0)
+        # create_wall(1, "72,18,12", "72,0,12", 12.0, 1.0)
+    except Exception as e:
+        print('Error with create_walls: ', e)
+        return False
+
+
+def create_floor_demo(storey_n: int = 1, elevation: float = 0.0, point_list: list = [(0., 0., 0.), (0., 100., 0.), (100., 100., 0.), (100., 0., 0.)], slab_thickness: float = 1.0) -> bool:
+    """
+    Creates a floor in the specified storey with given dimensions and thickness.
+
+    Parameters:
+    - user_request (str): The user's request message as it is.
+    - storey_n (int): The storey number where the slab will be created.
+    - point_list (list): The list of points that make up the floor boundary. Each value should be a float.
+    - slab_thickness (float): The thickness of the slab.
+    """
+    # global retrieval_tool
+    try:
+        print(
+            f"storey_n: {storey_n}, elevation: {elevation}, point_list: {point_list}, slab_thickness: {slab_thickness}")
+
+        # Get model information
+        try:
+            context = IFC_MODEL.ifcfile.by_type(
+                "IfcGeometricRepresentationContext")[0]
+        except Exception as e:
+            print(f"Error getting model context: {e}")
+            raise
+
+        try:
+            owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
+            owner_history.CreationDate = int(owner_history.CreationDate)
+        except Exception as e:
+            print(f"Error getting owner_history: {e}")
+            raise
+
+        # Get story information
+        try:
+            if len(IFC_MODEL.building_storey_list) < storey_n:
+                IFC_MODEL.create_building_storeys(
+                    elevation, f"Level {storey_n}")
+            print(IFC_MODEL.building_storey_list)
+            storey = IFC_MODEL.building_storey_list[storey_n - 1]
+            elevation = storey.Elevation
+            print(f"Elevation Storey: {elevation}")
+            storey_placement = storey.ObjectPlacement
+        except Exception as e:
+            print(f"Error getting storey information: {e}")
+            raise
+
+        print(f"elevation: {elevation}")
+
+        # Create slab boundary
+        try:
+            slab = ifcopenshell.api.run(
+                "root.create_entity", IFC_MODEL.ifcfile, ifc_class="IfcSlab")
+            slab.Name = "Slab"
+            slab_placement = IFC_MODEL.create_ifclocalplacement(
+                (0., 0., float(elevation)), Z, X, relative_to=storey_placement)
+            slab.ObjectPlacement = slab_placement
+
+            ifc_slabtype = ifcopenshell.api.run(
+                "root.create_entity", IFC_MODEL.ifcfile, ifc_class="IfcSlabType")
+            ifcopenshell.api.run("type.assign_type", IFC_MODEL.ifcfile,
+                                 related_objects=[slab], relating_type=ifc_slabtype)
+
+        except Exception as e:
+            print(f"Error creating slab boundary: {e}")
+            raise
+
+        # Create points for slab boundary
+        try:
+            points = [IFC_MODEL.ifcfile.createIfcCartesianPoint(
+                (x, y, z)) for x, y, z in point_list]
+            points.append(points[0])  # close loop
+
+            # Create boundary polyline
+            slab_line = IFC_MODEL.ifcfile.createIfcPolyline(points)
+            slab_profile = IFC_MODEL.ifcfile.createIfcArbitraryClosedProfileDef(
+                "AREA", None, slab_line)
+            ifc_direction = IFC_MODEL.ifcfile.createIfcDirection(Z)
+        except Exception as e:
+            print(f"Error creating points for slab boundary: {e}")
+            raise
+
+        # Create local axis placement
+        try:
+            point = IFC_MODEL.ifcfile.createIfcCartesianPoint((0.0, 0.0, 0.0))
+            dir1 = IFC_MODEL.ifcfile.createIfcDirection((0., 0., 1.0))
+            dir2 = IFC_MODEL.ifcfile.createIfcDirection((1.0, 0., 0.0))
+            axis2placement = IFC_MODEL.ifcfile.createIfcAxis2Placement3D(
+                point, dir1, dir2)
+        except Exception as e:
+            print(f"Error creating local axis placement: {e}")
+            raise
+
+        # Create extruded slab geometry
+        try:
+            extrusion = slab_thickness
+            slab_solid = IFC_MODEL.ifcfile.createIfcExtrudedAreaSolid(
+                slab_profile,  axis2placement, ifc_direction, extrusion)
+            shape_representation = IFC_MODEL.ifcfile.createIfcShapeRepresentation(ContextOfItems=context,
+                                                                                  RepresentationIdentifier='Body',
+                                                                                  RepresentationType='SweptSolid',
+                                                                                  Items=[slab_solid])
+        except Exception as e:
+            print(f"Error creating extruded slab geometry: {e}")
+            raise
+
+        print(
+            f"Shape Representation: {shape_representation}, IFC Slab Type: {ifc_slabtype}, IFC Slab: {slab}, Storey: {storey}, Elevation: {elevation}, Points: {points}")
+
+        # Create product entity and assign to spatial container
+        try:
+            ifcopenshell.api.run("geometry.assign_representation", IFC_MODEL.ifcfile,
+                                 product=ifc_slabtype, representation=shape_representation)
+            # ifcopenshell.api.run("spatial.assign_container", IFC_MODEL.ifcfile,
+            #                     products=[slab], relating_structure=storey)
+            IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
+            ), owner_history, "Building Storey Container", None, [slab], storey)
+        except Exception as e:
+            print(
+                f"Error creating product entity and assigning to spatial container: {e}")
+            raise
+
+        # Save structure
+        try:
+            IFC_MODEL.save_ifc("public/canvas.ifc")
+        except Exception as e:
+            print(f"Error saving structure: {e}")
+            raise
+
+        return True
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        raise
+
+
+@tool
+def floor_copy(user_request: str) -> bool:
+    """
+    Either:
+    1. Creates a floor and copies the user's existing structure onto another floor
+    2. Adds floors and copies a user's existing structure onto multiple floors
+    E.g "/add floors and replicate this structure to second floor" or "/add another 3 stories & copy the 3x6 wing up to these new levels"
+
+    Parameters:
+    - user_request (str): The user's request message as it is.
+    """
+    try:
+        if user_request == "/add floors and replicate this structure to second floor":
+            create_floor_demo(storey_n=1, elevation=0.0, point_list=[(0., 0., 0.), (0., 18.0*5, 0.),
+                                                                     (18.0*2, 18.0*5, 0.), (18.0*2, 0., 0.)], slab_thickness=1.0)
+            create_floor_demo(storey_n=1, elevation=0.0, point_list=[(18.0*2, 0., 0.), (18.0*2, 18.0, 0.), (18.0*2 +
+                                                                                                            18.0*2, 18.0, 0.), (18.0*2+18.0*2, 0., 0.), (18.0*2, 0., 0.)], slab_thickness=1.0)
+            create_floor_demo(storey_n=2, elevation=12.0, point_list=[(0., 0., 12.), (0., 18.0*5, 12.),
+                                                                      (18.0*2, 18.0*5, 12.), (18.0*2, 0., 12.)], slab_thickness=1.0)
+            create_floor_demo(storey_n=2, elevation=12.0, point_list=[(18.0*2, 0., 12.), (18.0*2, 18.0, 12.), (18.0*2 +
+                                                                                                               18.0*2, 18.0, 12.), (18.0*2+18.0*2, 0., 12.)], slab_thickness=1.0)
+
+            # create the same structure on top - columns
+            for i in range(3):
+                for j in range(6):
+                    x = i * 18.0
+                    y = j * 18.0
+                    create_column(2, f"{x},{y},12.0", 12, "W12X53")
+
+            for i in range(2):
+                for j in range(2):
+                    x = i * 18.0 + 54.0  # Offset to create an additional wing on the side
+                    y = j * 18.0
+                    create_column(2, f"{x},{y},12.0", 12, "W12X53")
+
+            # create the same structure on top - beams
+            for i in range(3):
+                for j in range(6):
+                    x = i * 18.0
+                    y = j * 18.0
+                    if j < 5:  # Horizontal beams
+                        create_beam(f"{x},{y},24.0",
+                                    f"{x},{y + 18.0},24.0", 'W16X40', 2)
+                    if i < 2:  # Vertical beams
+                        create_beam(f"{x},{y},24.0",
+                                    f"{x + 18.0},{y},24.0", 'W16X40', 2)
+            for i in range(2):
+                for j in range(2):
+                    x = i * 18.0 + 54.0  # Offset to create an additional wing on the side
+                    y = j * 18.0
+                    if j < 1:  # Horizontal beams for the additional wing
+                        create_beam(f"{x},{y},24.0",
+                                    f"{x},{y + 18.0},24.0", 'W16X40', 2)
+                    if i < 1:  # Vertical beams for the additional wing
+                        create_beam(f"{x},{y},24.0",
+                                    f"{x + 18.0},{y},24.0", 'W16X40', 2)
+
+            for i in range(2):
+                for j in range(2):
+                    x = i * 18.0 + 36.0  # Offset to create an additional wing on the side
+                    y = j * 18.0
+                    if j < 1:  # Horizontal beams for the additional wing
+                        create_beam(f"{x},{y},24.0",
+                                    f"{x},{y + 18.0},24.0", 'W16X40', 2)
+                    if i < 1:  # Vertical beams for the additional wing
+                        create_beam(f"{x},{y},24.0",
+                                    f"{x + 18.0},{y},24.0", 'W16X40', 2)
+        elif user_request == "/add another 3 stories & copy the 3x6 wing up to these new levels":
+            create_floor_demo(storey_n=3, elevation=24.0, point_list=[(0., 0., 24.), (0., 18.0*5, 24.),
+                                                                      (18.0*2, 18.0*5, 24.), (18.0*2, 0., 24.)], slab_thickness=1.0)
+            create_floor_demo(storey_n=4, elevation=36.0, point_list=[(0., 0., 36.), (0., 18.0*5, 36.),
+                                                                      (18.0*2, 18.0*5, 36.), (18.0*2, 0., 36.)], slab_thickness=1.0)
+            create_floor_demo(storey_n=5, elevation=48.0, point_list=[(0., 0., 48.), (0., 18.0*5, 48.),
+                                                                      (18.0*2, 18.0*5, 48.), (18.0*2, 0., 48.)], slab_thickness=1.0)
+            for k in range(3):
+                # create the same structure on top - columns
+                elevation = 24.0 + (k * 12)
+                for i in range(3):
+                    for j in range(6):
+                        x = i * 18.0
+                        y = j * 18.0
+                        create_column(
+                            k + 3, f"{x},{y},{elevation}", 12, "W12X53")
+                # create the same structure on top - beams
+                for i in range(3):
+                    for j in range(6):
+                        x = i * 18.0
+                        y = j * 18.0
+                        if j < 5:  # Horizontal beams
+                            create_beam(f"{x},{y},{elevation + 12.0}",
+                                        f"{x},{y + 18.0},{elevation + 12.0}", 'W16X40', k + 3)
+                        if i < 2:  # Vertical beams
+                            create_beam(f"{x},{y},{elevation + 12.0}",
+                                        f"{x + 18.0},{y},{elevation + 12.0}", 'W16X40', k + 3)
+
+        return True
+    except Exception as e:
+        print(f"Error with create_floors_top_and_bottom: {e}")
+        return False
+
+
+@tool
+def create_kickers(user_request: str) -> bool:
+    """
+    Creates kickers (beams connecting the overhang with the building) to support the roof overhang 
+    E.g "/add two kickers to support the overhang. They should connect to the overhang at 2ft away from the edge and be supported at the bottom of level 4."
+
+    Parameters:
+    - user_request (str): The user's request message as it is.
+    """
+    create_beam(f"{0},{0},{48}", f"{0},{-8},{60}", 'W16X40', 6)
+    create_beam(f"{18 * 2},{0},{48}",
+                f"{18 * 2},{-8},{60}", 'W16X40', 6)
+
+
+@tool
+async def image_to_bim(user_request: str) -> bool:
+    """ 
+    Converts an image sent as user_request to the outer walls in a BIM model. Used for DEMO MODE ONLY
+    E.g /create this image as BIM
+
+    Parameters:
+    - user_request (str): The user's request message as it is.
+    """
+    try:
+        create_floor_demo(storey_n=1, elevation=0.0, point_list=[(0., 0., 0.), (0., 60., 0.),
+                          (40., 60.0, 0.), (40.0, 0., 0.)], slab_thickness=1.0)
+        # first create outer walls
+        create_wall(1, "0,0,0", "0,60,0", 12.0, 1.0)
+        create_wall(1, "40,0,0", "40,60,0", 12.0, 1.0)
+        create_wall(1, "0,0,0", "40,0,0", 12.0, 1.0)
+        create_wall(1, "0,60,0", "40,60,0", 12.0, 1.0)
+
+        await asyncio.sleep(2)  # Sleep for 5 seconds
+        # first create inner walls
+        create_wall(1, "0,0,0", "0,60,0", 12.0, 1.0)
+        create_wall(1, "40,0,0", "40,60,0", 12.0, 1.0)
+        create_wall(1, "0,0,0", "40,0,0", 12.0, 1.0)
+        create_wall(1, "0,60,0", "40,60,0", 12.0, 1.0)
+
+        create_wall(1, "0,50,0", "40,50,0", 12.0, 1.0)
+        create_wall(1, "30,50,0", "30,60,0", 12.0, 1.0)
+
+        create_wall(1, "30,50,0", "30,45,0", 12.0, 1.0)
+        create_wall(1, "30,44,0", "30,20,0", 12.0, 1.0)
+        create_wall(1, "30,15,0", "30,0,0", 12.0, 1.0)
+
+        create_wall(1, "30,30,0", "40,30,0", 12.0, 1.0)
+
+        await asyncio.sleep(2)
+
+    except:
+        pass
+
+
+@tool
+def create_roof_create_walls(user_request: str) -> bool:
+    """
+    Creates a roof at the top and creates walls around the whole structure
+    E.g /add roof and walls around structure
+
+    Parameters:
+    - user_request (str): The user's request message as it is.
+    """
+    try:
+        create_floor_demo(storey_n=6, elevation=60.0, point_list=[(0., -10., 60.), (0., 18.0*5, 60.),
+                          (18.0*2, 18.0*5, 60.), (18.0*2, -10., 60.)], slab_thickness=1.0)
+        create_floor_demo(storey_n=3, elevation=24.0, point_list=[(18.0*2, 0., 24.), (18.0*2, 18.0, 24.), (18.0*2 +
+                          18.0*2, 18.0, 24.), (18.0*2+18.0*2, 0., 24.)], slab_thickness=1.0)
+
+        create_walls(user_request)
+        return True
+    except Exception as e:
+        print(f"Error with create_roof_create_walls: {e}")
+        return False
+
+
+@ tool
+def create_floors_top_and_bottom(user_request: str) -> bool:
+    """
+    Creates the floor on the top and the bottom of the rectangular structure.
+    E.g /add the roof to the top of the rectangular structure and floor to the bottom of the structure
+
+    Parameters:
+    - user_request (str): The user's request message as it is.
+    """
+    try:
+        print(f"user_request: {user_request}")
+        create_floor_demo(1, [(0., 0., 0.), (0., 18.0*6, 0.),
+                          (18.0*3, 18.0*6, 0.), (18.0*3, 0., 0.), (0., 0., 0.)], 1.0)
+        create_floor_demo(1, [(54.0, 0., 0.), (54.0, 18.0*2, 0.), (54.0 +
+                          18.0*2, 18.0*2, 0.), (54.0+18.0*2, 0., 0.), (54.0, 0., 0.)], 1.0)
+        create_floor_demo(2, [(0., 0., 12.), (0., 18.0*6, 12.),
+                          (18.0*3, 18.0*6, 12.), (18.0*3, 0., 12.), (0., 0., 12.)], 1.0)
+        create_floor_demo(2, [(54.0, 0., 12.), (54.0, 18.0*2, 12.), (54.0 +
+                          18.0*2, 18.0*2, 12.), (54.0+18.0*2, 0., 12.), (54.0, 0., 12.)], 1.0)
+        return True
+    except Exception as e:
+        print(f"Error with create_floors_top_and_bottom: {e}")
+        return False
