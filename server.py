@@ -45,7 +45,7 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
-app.mount("/public", StaticFiles(directory="public"), name="public")
+app.mount("/tmp", StaticFiles(directory="tmp"), name="tmp")
 # Create a Socket.IO server allowing CORS for specific origins
 combined_asgi_app = socketio.ASGIApp(sio, app)
 
@@ -63,7 +63,7 @@ async def upload_file(file: UploadFile = File(...), sid: str = Header(None)):
         logger.info(f"Starting upload for file: {file.filename}")
 
         # Save the uploaded file
-        file_location = f"public/{file.filename}"
+        file_location = f"tmp/{file.filename}"
         logger.info(f"Saving file to: {file_location}")
         with open(file_location, "wb") as f:
             content = await file.read()

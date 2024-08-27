@@ -73,7 +73,7 @@ def create_floor(storey_n: int = 1, point_list: list = [(0.,0.,0.),(0.,100.,0.),
                             products=[slab], relating_structure=storey) # assign to a spatial container (the story)
 
         # Save structure
-        IFC_MODEL.save_ifc("public/canvas.ifc")
+        IFC_MODEL.save_ifc("tmp/canvas.ifc")
         retrieval_tool = parse_ifc()
         return True
     except Exception as e:
