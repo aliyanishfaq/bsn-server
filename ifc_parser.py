@@ -114,16 +114,16 @@ def parse_ifc():
     """
     id_objects = {}
     jsonObjects = []
-    ifc_file = ifcopenshell.open('tmp/canvas.ifc')
+    ifc_file = ifcopenshell.open('public/canvas.ifc')
     entityIter = iter(ifc_file)
     for entity in entityIter:
         if entity.is_a() in ['IfcWallStandardCase', 'IfcWall', 'IfcColumn', 'IfcBeam', 'IfcSlab', 'IfcRoof', 'IfcBuilding', 'IfcDoor', 'IfcBuildingStorey', 'IfcFloor']:
             entityToDict(entity, id_objects)
     for key in id_objects:
         jsonObjects.append(id_objects[key])
-    with open('tmp/canvas.json', 'w') as outfile:
+    with open('public/canvas.json', 'w') as outfile:
         json.dump(jsonObjects, outfile, indent=4)
-    loader = TextLoader('tmp/canvas.json')
+    loader = TextLoader('public/canvas.json')
     docs = loader.load()
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000, chunk_overlap=200)
