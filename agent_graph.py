@@ -288,7 +288,9 @@ async def model_streamer(sid, data: dict, unique_hash: str):
                 message = f"{event.get('name')} execution failed"
             print("emitting fileChange")
             print("SID: ", sid)
-            await sio.emit('fileChange', {'userId': 'BuildSync', 'message': 'A new change has been made to the file', 'file_name': 'public/canvas.ifc'})
+            fileContent = open('public/canvas.ifc', 'rb').read()
+            filePath = 'public/canvas.ifc'
+            await sio.emit('fileChange', {'userId': 'BuildSync', 'message': 'A new change has been made to the file', 'file_name': 'public/canvas.ifc', 'file_content': fileContent})
             print("fileChange emitted")
             print('file contents: ', open('public/canvas.ifc', 'rb').read())
         elif kind == "on_chain_start":
