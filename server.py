@@ -45,7 +45,7 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
-app.mount("/tmp", StaticFiles(directory="/tmp"), name="tmp")
+app.mount("/public", StaticFiles(directory="public"), name="public")
 # Create a Socket.IO server allowing CORS for specific origins
 combined_asgi_app = socketio.ASGIApp(sio, app)
 
