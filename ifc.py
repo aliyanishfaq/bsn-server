@@ -479,10 +479,10 @@ class IfcModel:
 
         Parameters:
         - wall: The wall element in which the void will be created.
-        - width (float): The width of the void.
-        - height (float): The height of the void.
-        - depth (float): The depth of the void (thickness of the wall).
-        - void_location (tuple): The location (x, y, z) of the void relative to the wall.
+        - width (float): The width of the void (X axis).
+        - height (float): The height of the void (Z axis).
+        - depth (float): The depth of the void (thickness of the wall) (Y axis).
+        - void_location (tuple): The local coordinates (x, y, z) of the void relative to the wall.
         """
         try:
             print(
@@ -501,55 +501,124 @@ class IfcModel:
                 raise ValueError
 
             # Defining the void placement
-            void_placement = self.create_ifclocalplacement(
-                void_location, (0.0, 0.0, 1.0), (1.0, 0.0, 0.0), wall_placement)
-            void_extrusion_placement = self.create_ifcaxis2placement(
-                (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), (1.0, 0.0, 0.0))
+            try:
+                void_placement = self.create_ifclocalplacement(
+                    void_location, (0.0, 0.0, 1.0), (1.0, 0.0, 0.0), wall_placement)
+            except Exception as e:
+                print(
+                    f"An error occurred while creating the void placement: {e}")
+                raise
+
+            try:
+                void_extrusion_placement = self.create_ifcaxis2placement(
+                    (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), (1.0, 0.0, 0.0))
+            except Exception as e:
+                print(
+                    f"An error occurred while creating the void extrusion placement: {e}")
+                raise
+
             point_list_void_extrusion_area = [
                 (0.0, -depth, 0.0), (width, -depth, 0.0), (width,
                                                            depth, 0.0), (0.0, depth, 0.0), (0.0, -depth, 0.0)
             ]
-            # Create the extruded area solid for the void element
-            void_solid = self.create_ifcextrudedareasolid(
-                point_list_void_extrusion_area, void_extrusion_placement, (0.0, 0.0, 1.0), height)
+            try:
+                # Create the extruded area solid for the void element
+                void_solid = self.create_ifcextrudedareasolid(
+                    point_list_void_extrusion_area, void_extrusion_placement, (0.0, 0.0, 1.0), height)
+            except Exception as e:
+                print(f"An error occurred while creating the void solid: {e}")
+                raise
 
-            # Create the shape representation for the void element
-            void_representation = self.ifcfile.createIfcShapeRepresentation(
-                context, "Body", "SweptSolid", [void_solid])
+            try:
+                # Create the shape representation for the void element
+                void_representation = self.ifcfile.createIfcShapeRepresentation(
+                    context, "Body", "SweptSolid", [void_solid])
+            except Exception as e:
+                print(
+                    f"An error occurred while creating the void representation: {e}")
+                raise
 
-            # Create the product definition shape for the void element
-            void_shape = self.ifcfile.createIfcProductDefinitionShape(
-                None, None, [void_representation])
+            try:
+                # Create the product definition shape for the void element
+                void_shape = self.ifcfile.createIfcProductDefinitionShape(
+                    None, None, [void_representation])
+            except Exception as e:
+                print(f"An error occurred while creating the void shape: {e}")
+                raise
 
-            # Create the opening element with the specified attributes
-            opening_element = self.ifcfile.createIfcOpeningElement(
-                self.create_guid(), owner_history, "Void", "Wall void", None, void_placement, void_shape, None)
+            try:
+                # Create the opening element with the specified attributes
+                opening_element = self.ifcfile.createIfcOpeningElement(
+                    self.create_guid(), owner_history, "Void", "Wall void", None, void_placement, void_shape, None)
+            except Exception as e:
+                print(
+                    f"An error occurred while creating the opening element: {e}")
+                raise
 
-            # Relate the opening element to the wall
-            self.ifcfile.createIfcRelVoidsElement(
-                self.create_guid(), owner_history, None, None, wall, opening_element)
+            try:
+                # Relate the opening element to the wall
+                self.ifcfile.createIfcRelVoidsElement(
+                    self.create_guid(), owner_history, None, None, wall, opening_element)
+            except Exception as e:
+                print(
+                    f"An error occurred while relating the opening element to the wall: {e}")
+                raise
 
-            # Now create the window within the void
-            window_placement = self.create_ifclocalplacement(
-                (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), (1.0, 0.0, 0.0), void_placement)
-            window_extrusion_placement = self.create_ifcaxis2placement(
-                (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), (1.0, 0.0, 0.0))
-            point_list_window_extrusion_area = [
-                (0.0, -0.01, 0.0), (width, -0.01, 0.0), (width, 0.01, 0.0), (0.0, 0.01, 0.0), (0.0, -0.01, 0.0)]
-            window_solid = self.create_ifcextrudedareasolid(
-                point_list_window_extrusion_area, window_extrusion_placement, (0.0, 0.0, 1.0), height)
-            window_representation = self.ifcfile.createIfcShapeRepresentation(
-                context, "Body", "SweptSolid", [window_solid])
-            window_shape = self.ifcfile.createIfcProductDefinitionShape(
-                None, None, [window_representation])
-            window = self.ifcfile.createIfcWindow(
-                self.create_guid(), owner_history, "Window", "Window in void", None, window_placement, window_shape, None, None)
+            # # Now create the window within the void
+            # try:
+            #     window_placement = self.create_ifclocalplacement(
+            #         (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), (1.0, 0.0, 0.0), void_placement)
+            # except Exception as e:
+            #     print(
+            #         f"An error occurred while creating the window placement: {e}")
+            #     raise
 
-            # Relate the window to the opening element
-            self.ifcfile.createIfcRelFillsElement(
-                self.create_guid(), owner_history, None, None, opening_element, window)
-            self.ifcfile.createIfcRelContainedInSpatialStructure(self.create_guid(
-            ), owner_history, "Building Storey Container", None, [wall, window], wall_storey)
+            # try:
+            #     window_extrusion_placement = self.create_ifcaxis2placement(
+            #         (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), (1.0, 0.0, 0.0))
+            # except Exception as e:
+            #     print(
+            #         f"An error occurred while creating the window extrusion placement: {e}")
+            #     raise
+
+            # try:
+            #     point_list_window_extrusion_area = [
+            #         (0.0, -0.01, 0.0), (width, -0.01, 0.0), (width, 0.01, 0.0), (0.0, 0.01, 0.0), (0.0, -0.01, 0.0)]
+            #     window_solid = self.create_ifcextrudedareasolid(
+            #         point_list_window_extrusion_area, window_extrusion_placement, (0.0, 0.0, 1.0), height)
+            # except Exception as e:
+            #     print(
+            #         f"An error occurred while creating the window solid: {e}")
+            #     raise
+
+            # try:
+            #     window_representation = self.ifcfile.createIfcShapeRepresentation(
+            #         context, "Body", "SweptSolid", [window_solid])
+            # except Exception as e:
+            #     print(
+            #         f"An error occurred while creating the window representation: {e}")
+            #     raise
+
+            # try:
+            #     window_shape = self.ifcfile.createIfcProductDefinitionShape(
+            #         None, None, [window_representation])
+            # except Exception as e:
+            #     print(
+            #         f"An error occurred while creating the window shape: {e}")
+            #     raise
+
+            # try:
+            #     window = self.ifcfile.createIfcWindow(
+            #         self.create_guid(), owner_history, "Window", "Window in void", None, window_placement, window_shape, None, None)
+            # except Exception as e:
+            #     print(f"An error occurred while creating the window: {e}")
+            #     raise
+
+            # # Relate the window to the opening element
+            # self.ifcfile.createIfcRelFillsElement(
+            #     self.create_guid(), owner_history, None, None, opening_element, window)
+            # self.ifcfile.createIfcRelContainedInSpatialStructure(self.create_guid(
+            # ), owner_history, "Building Storey Container", None, [wall, window], wall_storey)
 
         except Exception as e:
             print(f"An error occurred while creating the void: {e}")

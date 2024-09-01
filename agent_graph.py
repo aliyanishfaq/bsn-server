@@ -120,6 +120,19 @@ for key, value in examples.items():
 
 
 def create_agent(llm, tools):
+    for tool in tools:
+        print(f"Tool: {tool}, Type: {type(tool)}")
+
+    # Ensure all tools have a 'name' attribute
+    try:
+        tool_names = [tool.name for tool in tools]
+    except AttributeError as e:
+        print(f"Error: {e}")
+        for tool in tools:
+            if not hasattr(tool, 'name'):
+                print(
+                    f"Tool without 'name' attribute: {tool}, Type: {type(tool)}")
+        raise
     """Create an agent."""
     prompt = ChatPromptTemplate.from_messages(
         [
@@ -202,7 +215,6 @@ async def stream_with_backoff(data: dict, config: dict):
     user_command = data.get('message')
     image_data = data.get('imageData')
     message_type = data.get('messageType')
-    
 
     if message_type == 'Image':
         prefix = re.match(r'data:image/(\w+);base64,(.+)', image_data)
@@ -214,33 +226,33 @@ async def stream_with_backoff(data: dict, config: dict):
         # Read the image file in binary mode
         messages = {
             "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": image_type,
-                            "data": encoded_image,
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": image_type,
+                                "data": encoded_image,
+                            },
                         },
-                    },
-                    {
-                        "type": "text",
-                        "text": user_command
-                    }
-                ],
-            }]
+                        {
+                            "type": "text",
+                            "text": user_command
+                        }
+                    ],
+                }]
         }
     else:
         messages = {"messages": [{
             "role": "user",
-             "content": [
-                 {
-                     "type": "text",
-                     "text": user_command
-                 }
-             ]}]}
+            "content": [
+                {
+                    "type": "text",
+                    "text": user_command
+                }
+            ]}]}
     async for event in graph.astream_events(messages, config, version='v1'):
         yield event
 
@@ -292,7 +304,7 @@ async def model_streamer(sid, data: dict, unique_hash: str):
             filePath = 'public/canvas.ifc'
             await sio.emit('fileChange', {'userId': 'BuildSync', 'message': 'A new change has been made to the file', 'file_name': 'public/canvas.ifc', 'file_content': fileContent})
             print("fileChange emitted")
-            print('file contents: ', open('public/canvas.ifc', 'rb').read())
+            # print('file contents: ', open('public/canvas.ifc', 'rb').read())
         elif kind == "on_chain_start":
             # print("event_data", event['data'])
             try:
