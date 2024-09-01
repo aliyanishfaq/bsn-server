@@ -60,6 +60,7 @@ async def create_on_start():
         raise
 
 
+@tool
 def create_session() -> bool:
     """
     Creates a new IFC model for the user.
@@ -493,6 +494,7 @@ def create_grid(grids_x_distance_between: float = 10.0, grids_y_distance_between
         raise
 
 
+@tool
 def create_wall(story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = "0,0,0", height: float = 30.0, thickness: float = 1.0) -> bool:
     """
     Creates a single wall in the Revit document based on specified start and end coordinates, level, wall type, structural flag, height, and thickness.
@@ -645,20 +647,24 @@ def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0),
         raise
 
 
-def create_void_in_wall(host_wall_id=None, width=1.0, height=1.0, depth=1.0, void_location=(0.0, 0.0, 0.0)):
+@tool
+def create_void_in_wall(host_wall_id=None, width=1.0, height=1.0, depth=1.0, void_location=(1.0, 0.0, 1.0)) -> bool:
     """
     Creates a void in the specified host element and commits it to the IFC file.
 
     Parameters:
-    - host_wall_id: The ID of the host wall in which the void will be created.
-    - width (float): The width of the void.
-    - height (float): The height of the void.
-    - depth (float): The depth of the void (thickness of the wall).
-    - void_location: The local coordinates of the void placement relative to the wall.
+    - host_wall_id: The GUID of the IFC wall element in which the void will be created.
+    - width (float): The width of the void (X axis).
+    - height (float): The height of the void (Z axis).
+    - depth (float): The depth of the void (thickness of the wall) (Y axis).
+    - void_location (tuple): The local coordinates (x, y, z) of the void relative to the wall. Each value in this tuple should be a float. Example: (0., 0., 0.)
     """
     try:
+        print(
+            f"host_wall_id: {host_wall_id}, width: {width}, height: {height}, depth: {depth}, void_location: {void_location}")
         # Retrieve wall with element ID
         walls = IFC_MODEL.ifcfile.by_type("IfcWall")
+        print("All of the walls: ", walls)
         host_wall = None
         for wall in walls:
             if str(wall.GlobalId).strip() == str(host_wall_id).strip():
@@ -668,19 +674,26 @@ def create_void_in_wall(host_wall_id=None, width=1.0, height=1.0, depth=1.0, voi
         if host_wall is None:
             raise ValueError(f"No wall found with GlobalId: {host_wall_id}")
 
-        # # Call the create_void_in_wall method from the IFCModel class
-        # void_element = IFC_MODEL.create_void_in_wall(
-        #     host_wall, point_list, width, height, depth)
+        # Ensure void_location is a tuple of (X, Y, Z)
+        try:
+            void_location = tuple(float(coord) for coord in void_location)
+            print(
+                f"Void Location: {void_location}, Void Location type: {type(void_location)}")
+        except:
+            print(
+                f"Cannot convert void_location to correct tuples. Original void_location: {void_location}")
+            raise ValueError
 
-        void_element = IFC_MODEL.create_void_in_wall(
+        # Create void element
+        IFC_MODEL.create_void_in_wall(
             wall=host_wall, width=width, height=height, depth=depth, void_location=void_location)
 
         # # Save structure
         IFC_MODEL.save_ifc("public/canvas.ifc")
         retrieval_tool = parse_ifc()
 
-        # print("Void created and committed to the IFC file successfully.")
-        return void_element
+        print("Void created and committed to the IFC file successfully.")
+        return True
     except Exception as e:
         print(f"An error occurred while creating the void: {e}")
         raise
@@ -1313,14 +1326,10 @@ if __name__ == "__main__":
         story_n=1, start_coord="0,0,0", end_coord="10,0,0", height=10, thickness=0.5)
 
     host_wall_id = wall_guid
-
     width = 4.0
     height = 3.0
     depth = 0.5
     void_location = (2.0, 0.0, 3.0)
-    point_list = [(0.0, -0., 0.0), (3.0, -0.1, 0.0),
-                  (3.0, 0.1, 0.0), (0.0, 0.1, 0.0), (0.0, -0.1, 0.0)]
-    thickness = 0.5
 
     create_void_in_wall(host_wall_id=host_wall_id, width=width,
                         height=height, depth=depth, void_location=void_location)
