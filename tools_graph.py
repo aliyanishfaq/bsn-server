@@ -645,16 +645,16 @@ def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0),
         raise
 
 
-def create_void_in_wall(host_wall_id=None, point_list=None, width=1.0, height=1.0, depth=1.0):
+def create_void_in_wall(host_wall_id=None, width=1.0, height=1.0, depth=1.0, void_location=(0.0, 0.0, 0.0)):
     """
     Creates a void in the specified host element and commits it to the IFC file.
 
     Parameters:
     - host_wall_id: The ID of the host wall in which the void will be created.
-    - point_list (list): The list of points that make up the opening boundary for the void. Each value should be a float.
-    - void_width: The width of the void.
-    - void_height: The height of the void.
-    - void_depth: The depth of the void (thickness of the host element).
+    - width (float): The width of the void.
+    - height (float): The height of the void.
+    - depth (float): The depth of the void (thickness of the wall).
+    - void_location: The local coordinates of the void placement relative to the wall.
     """
     try:
         # Retrieve wall with element ID
@@ -668,16 +668,19 @@ def create_void_in_wall(host_wall_id=None, point_list=None, width=1.0, height=1.
         if host_wall is None:
             raise ValueError(f"No wall found with GlobalId: {host_wall_id}")
 
-        # Call the create_void_in_wall method from the IFCModel class
+        # # Call the create_void_in_wall method from the IFCModel class
+        # void_element = IFC_MODEL.create_void_in_wall(
+        #     host_wall, point_list, width, height, depth)
+
         void_element = IFC_MODEL.create_void_in_wall(
-            host_wall, point_list, width, height, depth)
+            wall=host_wall, width=width, height=height, depth=depth, void_location=void_location)
 
         # # Save structure
-        # IFC_MODEL.save_ifc("public/canvas.ifc")
-        # retrieval_tool = parse_ifc()
+        IFC_MODEL.save_ifc("public/canvas.ifc")
+        retrieval_tool = parse_ifc()
 
         # print("Void created and committed to the IFC file successfully.")
-        # return void_element
+        return void_element
     except Exception as e:
         print(f"An error occurred while creating the void: {e}")
         raise
@@ -1306,10 +1309,18 @@ async def element_to_text(element: object) -> str:
 
 if __name__ == "__main__":
     create_session()
-    result, wall_guid = create_wall(1, "0,0,0", "10,0,0", 10, 0.5)
+    result, wall_guid = create_wall(
+        story_n=1, start_coord="0,0,0", end_coord="10,0,0", height=10, thickness=0.5)
 
     host_wall_id = wall_guid
-    point_list = [(0.0, -0.1, 0.0), (3.0, -0.1, 0.0),
-                  (3.0, 0.1, 0.0), (0.0, 0.1, 0.0), (0.0, -0.1, 0.0)]
 
-    create_void_in_wall(host_wall_id, point_list)
+    width = 4.0
+    height = 3.0
+    depth = 0.5
+    void_location = (2.0, 0.0, 3.0)
+    point_list = [(0.0, -0., 0.0), (3.0, -0.1, 0.0),
+                  (3.0, 0.1, 0.0), (0.0, 0.1, 0.0), (0.0, -0.1, 0.0)]
+    thickness = 0.5
+
+    create_void_in_wall(host_wall_id=host_wall_id, width=width,
+                        height=height, depth=depth, void_location=void_location)
