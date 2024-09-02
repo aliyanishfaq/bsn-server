@@ -648,7 +648,7 @@ def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0),
 
 
 @tool
-def create_void_in_wall(host_wall_id=None, width=1.0, height=1.0, depth=1.0, void_location=(1.0, 0.0, 1.0)) -> bool:
+def create_void_in_wall(host_wall_id=None, width=1.0, height=1.0, depth=2.0, void_location=(1.0, 0.0, 1.0)) -> bool:
     """
     Creates a void in the specified host element and commits it to the IFC file.
 
