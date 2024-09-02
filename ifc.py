@@ -2,11 +2,13 @@ import pandas as pd
 import numpy as np
 import math
 import ifcopenshell.guid
+import ifcopenshell.util.element
 import time
 import tempfile
 import ifcopenshell
 import uuid
 import sys
+import pdb
 
 O = 0., 0., 0.
 X = 1., 0., 0.
@@ -137,7 +139,7 @@ class IfcModel:
         """
         Creates and returns a given 2-axis placement based on a point and two directions.
 
-        Parameters: 
+        Parameters:
         - point: the center of the given placement. Defaults to origin.
         - dir1: the first 3D directional vector. Defaults to the z-unit vector.
         - dir2: the second 3D directional vector. Defaults to the x-unit vector.
@@ -167,7 +169,7 @@ class IfcModel:
         ifclocalplacement = self.ifcfile.createIfcLocalPlacement(
             relative_to, axis2placement)
         return ifclocalplacement
-    
+
     def create_ifcpolyline(self, point_list):
         """
         Creates and returns a piecewise line that connects all points inputted in order of placement in list.
@@ -182,7 +184,6 @@ class IfcModel:
         polyline = self.ifcfile.createIfcPolyLine(ifcpts)
         return polyline
 
-    
     def create_ifcextrudedareasolid(self, point_list, ifcaxis2placement, extrude_dir, extrusion):
         """
         Creates and returns a extruded solid based on the inputs provided.
@@ -204,7 +205,6 @@ class IfcModel:
             ifcclosedprofile, ifcaxis2placement, ifcdir, extrusion)
         return ifcextrudedareasolid
 
-    
     def create_building_stories(self, elevation, name):
         """
         Adds a story to the building based on elevation and the name.
@@ -221,12 +221,11 @@ class IfcModel:
             name), None, None, story_placement, None, None, "ELEMENT", float(elevation))
         self.building_story_list.append(building_story)
 
-    
     def create_wall(self, context, owner_history, wall_placement, length, height, thickness):
         """
         Creates and returns a single wall in the IFC model, based on placement, height, length, and thickness.
 
-        Parameters: 
+        Parameters:
         - context: the scene in which to place the wall in.
         - owner_history: what the wall belongs to.
         - wall_placement: where the wall is in the blueprints
@@ -263,7 +262,6 @@ class IfcModel:
                                                       wall_placement, product_shape, None)
         return wall
 
-    
     def create_column(self, context, owner_history, column_placement, height, section_name):
         """
         Creates and returns a single column in the IFC model, based on placement and height.
@@ -290,12 +288,11 @@ class IfcModel:
         # 4. Create the product shape.
         product_shape = self.ifcfile.createIfcProductDefinitionShape(None, None, [
                                                                      body_rep])
-        #4. Create the final column and return it                                                              
+        # 4. Create the final column and return it
         column = self.ifcfile.createIfcColumn(self.create_guid(
         ), owner_history, "W-Shaped Column", None, None, column_placement, product_shape, None)
         return column
 
-    
     def create_beam(self, context, owner_history, beam_placement, length, section_name):
         """
         Creates and returns a single beam in the IFC model, based on placement and length.
@@ -331,7 +328,6 @@ class IfcModel:
                                           beam_placement, product_shape, None)
         return beam
 
-    
     def create_isolated_footing(self, location: tuple, length: float, width: float, thickness: float) -> None:
         """
         Creates an IFC footing entity with the specified parameters.
@@ -344,11 +340,13 @@ class IfcModel:
         """
         try:
             # Get geometric representation context (not the storey)
-            context = self.ifcfile.by_type("IfcGeometricRepresentationContext")[0]
+            context = self.ifcfile.by_type(
+                "IfcGeometricRepresentationContext")[0]
             owner_history = self.ifcfile.by_type("IfcOwnerHistory")[0]
 
             # Create footing entity
-            footing = self.ifcfile.create_entity("IfcFooting", GlobalId=self.create_guid(), OwnerHistory=owner_history, Name="Isolated Footing", ObjectPlacement=None, Representation=None, Tag=None, PredefinedType="PAD_FOOTING")           
+            footing = self.ifcfile.create_entity("IfcFooting", GlobalId=self.create_guid(
+            ), OwnerHistory=owner_history, Name="Isolated Footing", ObjectPlacement=None, Representation=None, Tag=None, PredefinedType="PAD_FOOTING")
 
             # Create local placement for the footing
             footing_placement = self.create_ifclocalplacement(location, Z, X)
@@ -358,31 +356,41 @@ class IfcModel:
             half_length = float(length / 2)
             half_width = float(width / 2)
             points = [
-                self.ifcfile.createIfcCartesianPoint((-half_length, -half_width, 0.0)),
-                self.ifcfile.createIfcCartesianPoint((half_length, -half_width, 0.0)),
-                self.ifcfile.createIfcCartesianPoint((half_length, half_width, 0.0)),
-                self.ifcfile.createIfcCartesianPoint((half_length, half_width, 0.0)),
-                self.ifcfile.createIfcCartesianPoint((-half_length, half_width, 0.0))
+                self.ifcfile.createIfcCartesianPoint(
+                    (-half_length, -half_width, 0.0)),
+                self.ifcfile.createIfcCartesianPoint(
+                    (half_length, -half_width, 0.0)),
+                self.ifcfile.createIfcCartesianPoint(
+                    (half_length, half_width, 0.0)),
+                self.ifcfile.createIfcCartesianPoint(
+                    (half_length, half_width, 0.0)),
+                self.ifcfile.createIfcCartesianPoint(
+                    (-half_length, half_width, 0.0))
             ]
 
             # Create boundary polyline
             footing_line = self.ifcfile.createIfcPolyline(Points=points)
-            footing_profile = self.ifcfile.createIfcArbitraryClosedProfileDef(ProfileType="AREA", ProfileName=None, OuterCurve=footing_line)
+            footing_profile = self.ifcfile.createIfcArbitraryClosedProfileDef(
+                ProfileType="AREA", ProfileName=None, OuterCurve=footing_line)
             ifc_direction = self.ifcfile.createIfcDirection((0.0, 0.0, 1.0))
 
             # Create local axis placement
             point = self.ifcfile.createIfcCartesianPoint([0.0, 0.0, 0.0])
             dir1 = self.ifcfile.createIfcDirection((0.0, 0.0, 1.0))
             dir2 = self.ifcfile.createIfcDirection((1.0, 0.0, 0.0))
-            axis2placement = self.ifcfile.createIfcAxis2Placement3D(Location=point, Axis=dir1, RefDirection=dir2)
-            
+            axis2placement = self.ifcfile.createIfcAxis2Placement3D(
+                Location=point, Axis=dir1, RefDirection=dir2)
+
             # Create extruded footing geometry
             extrusion = thickness
-            footing_solid = self.ifcfile.create_entity("IfcExtrudedAreaSolid", SweptArea=footing_profile, Position=axis2placement, ExtrudedDirection=ifc_direction, Depth=extrusion)
-            shape_representation = self.ifcfile.create_entity("IfcShapeRepresentation", ContextOfItems=context, RepresentationIdentifier='Body', RepresentationType='SweptSolid', Items=[footing_solid])
+            footing_solid = self.ifcfile.create_entity(
+                "IfcExtrudedAreaSolid", SweptArea=footing_profile, Position=axis2placement, ExtrudedDirection=ifc_direction, Depth=extrusion)
+            shape_representation = self.ifcfile.create_entity(
+                "IfcShapeRepresentation", ContextOfItems=context, RepresentationIdentifier='Body', RepresentationType='SweptSolid', Items=[footing_solid])
 
             # Assign representation to the footing
-            product_definition_shape = self.ifcfile.create_entity("IfcProductDefinitionShape", Representations=[shape_representation])
+            product_definition_shape = self.ifcfile.create_entity(
+                "IfcProductDefinitionShape", Representations=[shape_representation])
             footing.Representation = product_definition_shape
 
         except Exception as e:
@@ -390,8 +398,7 @@ class IfcModel:
             raise
 
         return footing
-    
-    
+
     def create_strip_footing(self, start_point: tuple, end_point: tuple, width: float, depth: float) -> None:
         """
         Creates an IFC continuous footing (strip footing) entity with the specified parameters.
@@ -404,19 +411,24 @@ class IfcModel:
         """
         try:
             # Get geometric representation context (not the storey)
-            context = self.ifcfile.by_type("IfcGeometricRepresentationContext")[0]
+            context = self.ifcfile.by_type(
+                "IfcGeometricRepresentationContext")[0]
             owner_history = self.ifcfile.by_type("IfcOwnerHistory")[0]
 
             # Create footing entity
-            footing = self.ifcfile.create_entity("IfcFooting", GlobalId=self.create_guid(), OwnerHistory=owner_history, Name="Continuous Footing", ObjectPlacement=None, Representation=None, Tag=None, PredefinedType="FOOTING_BEAM")
-            
+            footing = self.ifcfile.create_entity("IfcFooting", GlobalId=self.create_guid(
+            ), OwnerHistory=owner_history, Name="Continuous Footing", ObjectPlacement=None, Representation=None, Tag=None, PredefinedType="FOOTING_BEAM")
+
             # Calculate direction and length
-            direction = self.ifcfile.createIfcDirection(self.calc_direction(start_point, end_point))
+            direction = self.ifcfile.createIfcDirection(
+                self.calc_direction(start_point, end_point))
             length = self.calc_length(start_point, end_point)
-            crossprod = self.ifcfile.createIfcDirection(self.calc_cross(self.calc_direction(start_point, end_point), Z))
+            crossprod = self.ifcfile.createIfcDirection(
+                self.calc_cross(self.calc_direction(start_point, end_point), Z))
 
             # Create local placement for the footing
-            footing_placement = self.create_ifclocalplacement(start_point, self.calc_direction(start_point, end_point), Z)
+            footing_placement = self.create_ifclocalplacement(
+                start_point, self.calc_direction(start_point, end_point), Z)
             footing.ObjectPlacement = footing_placement
 
             # Create points for footing boundary with the center as the start point
@@ -424,95 +436,199 @@ class IfcModel:
             length = float(length)
             points = [
                 self.ifcfile.createIfcCartesianPoint((0.0, -half_width, 0.0)),
-                self.ifcfile.createIfcCartesianPoint((length, -half_width, 0.0)),
-                self.ifcfile.createIfcCartesianPoint((length, half_width, 0.0)),
+                self.ifcfile.createIfcCartesianPoint(
+                    (length, -half_width, 0.0)),
+                self.ifcfile.createIfcCartesianPoint(
+                    (length, half_width, 0.0)),
                 self.ifcfile.createIfcCartesianPoint((0.0, half_width, 0.0)),
                 self.ifcfile.createIfcCartesianPoint((0.0, -half_width, 0.0))
             ]
-    
+
             # Create boundary polyline
             footing_line = self.ifcfile.createIfcPolyline(Points=points)
-            footing_profile = self.ifcfile.createIfcArbitraryClosedProfileDef(ProfileType="AREA", ProfileName=None, OuterCurve=footing_line)
+            footing_profile = self.ifcfile.createIfcArbitraryClosedProfileDef(
+                ProfileType="AREA", ProfileName=None, OuterCurve=footing_line)
             ifc_direction = self.ifcfile.createIfcDirection((0.0, 0.0, 1.0))
 
             # Create local axis placement
             start = self.ifcfile.createIfcCartesianPoint(start_point)
-            axis2placement = self.ifcfile.createIfcAxis2Placement3D(start, Axis=direction, RefDirection=crossprod)
+            axis2placement = self.ifcfile.createIfcAxis2Placement3D(
+                start, Axis=direction, RefDirection=crossprod)
 
             # Create extruded footing geometry
-            footing_solid = self.ifcfile.create_entity("IfcExtrudedAreaSolid", SweptArea=footing_profile, Position=axis2placement, ExtrudedDirection=ifc_direction, Depth=depth)
-            shape_representation = self.ifcfile.create_entity("IfcShapeRepresentation", ContextOfItems=context, RepresentationIdentifier='Body', RepresentationType='SweptSolid', Items=[footing_solid])
+            footing_solid = self.ifcfile.create_entity(
+                "IfcExtrudedAreaSolid", SweptArea=footing_profile, Position=axis2placement, ExtrudedDirection=ifc_direction, Depth=depth)
+            shape_representation = self.ifcfile.create_entity(
+                "IfcShapeRepresentation", ContextOfItems=context, RepresentationIdentifier='Body', RepresentationType='SweptSolid', Items=[footing_solid])
 
             # Assign representation to the footing
-            product_definition_shape = self.ifcfile.create_entity("IfcProductDefinitionShape", Representations=[shape_representation])
+            product_definition_shape = self.ifcfile.create_entity(
+                "IfcProductDefinitionShape", Representations=[shape_representation])
             footing.Representation = product_definition_shape
 
         except Exception as e:
-            print(f"An error occurred while creating the continuous footing: {e}")
+            print(
+                f"An error occurred while creating the continuous footing: {e}")
             raise
 
         return footing
-    
-    def create_void_in_wall(self, wall, void_placement, width: float, height: float, depth: float):
+
+    def create_void_in_wall(self, wall, width: float, height: float, depth: float, void_location: tuple):
         """
         Creates a rectangular void in a wall.
 
         Parameters:
         - wall: The wall element in which the void will be created.
-        - void_placement: The local placement of the void.
-        - width (float): The width of the void.
-        - height (float): The height of the void.
-        - depth (float): The depth of the void (thickness of the wall).
+        - width (float): The width of the void (X axis).
+        - height (float): The height of the void (Z axis).
+        - depth (float): The depth of the void (thickness of the wall) (Y axis).
+        - void_location (tuple): The local coordinates (x, y, z) of the void relative to the wall.
         """
         try:
+            print(
+                f"Wall: {wall}, Width: {width}, Height: {height}, Depth: {depth}, Void Location: {void_location}")
             # Get geometric representation context
-            context = self.ifcfile.by_type("IfcGeometricRepresentationContext")[0]
+            context = self.ifcfile.by_type(
+                "IfcGeometricRepresentationContext")[0]
             owner_history = self.ifcfile.by_type("IfcOwnerHistory")[0]
 
-            # Create points for void boundary
-            width = float(width)
-            height = float(height)
-            depth = float(depth)
-            points = [
-                (0., 0., 0.),
-                (width, 0., 0.),
-                (width, height, 0.),
-                (0., height, 0.),
-                (0., 0., 0.)
+            # pdb.set_trace()
+            wall_placement = wall.ObjectPlacement  # Get wall placement
+            wall_storey = ifcopenshell.util.element.get_container(wall)
+            print(f"Wall Storey: {wall_storey}")
+            if not wall_storey:
+                print("Cannot find wall_storey")
+                raise ValueError
+
+            # Defining the void placement
+            try:
+                void_placement = self.create_ifclocalplacement(
+                    void_location, (0.0, 0.0, 1.0), (1.0, 0.0, 0.0), wall_placement)
+            except Exception as e:
+                print(
+                    f"An error occurred while creating the void placement: {e}")
+                raise
+
+            try:
+                void_extrusion_placement = self.create_ifcaxis2placement(
+                    (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), (1.0, 0.0, 0.0))
+            except Exception as e:
+                print(
+                    f"An error occurred while creating the void extrusion placement: {e}")
+                raise
+
+            point_list_void_extrusion_area = [
+                (0.0, -depth, 0.0), (width, -depth, 0.0), (width,
+                                                           depth, 0.0), (0.0, depth, 0.0), (0.0, -depth, 0.0)
             ]
+            try:
+                # Create the extruded area solid for the void element
+                void_solid = self.create_ifcextrudedareasolid(
+                    point_list_void_extrusion_area, void_extrusion_placement, (0.0, 0.0, 1.0), height)
+            except Exception as e:
+                print(f"An error occurred while creating the void solid: {e}")
+                raise
 
-            # Create boundary polyline
-            void_line = self.create_ifcpolyline(points)
-            void_profile = self.ifcfile.create_entity("IfcArbitraryClosedProfileDef", "AREA", None, void_line)
-            ifc_direction = self.createIfcDirection((0., 0., 1.))  # Extrusion direction along z-axis
+            try:
+                # Create the shape representation for the void element
+                void_representation = self.ifcfile.createIfcShapeRepresentation(
+                    context, "Body", "SweptSolid", [void_solid])
+            except Exception as e:
+                print(
+                    f"An error occurred while creating the void representation: {e}")
+                raise
 
-            # Create local axis placement
-            # point = self.ifcfile.createIfcCartesianPoint((0., 0., 0.))
-            # dir1 = self.ifcfile.createIfcDirection((0., 0., 1.))  # Axis along z-axis
-            # dir2 = self.ifcfile.createIfcDirection((1., 0., 0.))  # RefDirection along x-axis
-            axis2placement = self.create_ifcaxis2placement()
+            try:
+                # Create the product definition shape for the void element
+                void_shape = self.ifcfile.createIfcProductDefinitionShape(
+                    None, None, [void_representation])
+            except Exception as e:
+                print(f"An error occurred while creating the void shape: {e}")
+                raise
 
-            # Create extruded void geometry
-            void_solid = self.createIfcExtrudedAreaSolid(void_profile, axis2placement, ifc_direction, depth)
-            shape_representation = self.createIfcShapeRepresentation(context, 'Body', 'SweptSolid', [void_solid])
+            try:
+                # Create the opening element with the specified attributes
+                opening_element = self.ifcfile.createIfcOpeningElement(
+                    self.create_guid(), owner_history, "Void", "Wall void", None, void_placement, void_shape, None)
+            except Exception as e:
+                print(
+                    f"An error occurred while creating the opening element: {e}")
+                raise
 
-            # Create opening element
-            opening_element = self.ifcfile.create_entity("IfcOpeningElement", self.create_guid(), owner_history, "Opening", void_placement, shape_representation)
+            try:
+                # Relate the opening element to the wall
+                self.ifcfile.createIfcRelVoidsElement(
+                    self.create_guid(), owner_history, None, None, wall, opening_element)
+            except Exception as e:
+                print(
+                    f"An error occurred while relating the opening element to the wall: {e}")
+                raise
 
-            # Relate opening element to the wall
-            void = self.createIfcRelContainedInSpatialStructure(self.create_guid(), owner_history, opening_element)
+            # # Now create the window within the void
+            # try:
+            #     window_placement = self.create_ifclocalplacement(
+            #         (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), (1.0, 0.0, 0.0), void_placement)
+            # except Exception as e:
+            #     print(
+            #         f"An error occurred while creating the window placement: {e}")
+            #     raise
+
+            # try:
+            #     window_extrusion_placement = self.create_ifcaxis2placement(
+            #         (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), (1.0, 0.0, 0.0))
+            # except Exception as e:
+            #     print(
+            #         f"An error occurred while creating the window extrusion placement: {e}")
+            #     raise
+
+            # try:
+            #     point_list_window_extrusion_area = [
+            #         (0.0, -0.01, 0.0), (width, -0.01, 0.0), (width, 0.01, 0.0), (0.0, 0.01, 0.0), (0.0, -0.01, 0.0)]
+            #     window_solid = self.create_ifcextrudedareasolid(
+            #         point_list_window_extrusion_area, window_extrusion_placement, (0.0, 0.0, 1.0), height)
+            # except Exception as e:
+            #     print(
+            #         f"An error occurred while creating the window solid: {e}")
+            #     raise
+
+            # try:
+            #     window_representation = self.ifcfile.createIfcShapeRepresentation(
+            #         context, "Body", "SweptSolid", [window_solid])
+            # except Exception as e:
+            #     print(
+            #         f"An error occurred while creating the window representation: {e}")
+            #     raise
+
+            # try:
+            #     window_shape = self.ifcfile.createIfcProductDefinitionShape(
+            #         None, None, [window_representation])
+            # except Exception as e:
+            #     print(
+            #         f"An error occurred while creating the window shape: {e}")
+            #     raise
+
+            # try:
+            #     window = self.ifcfile.createIfcWindow(
+            #         self.create_guid(), owner_history, "Window", "Window in void", None, window_placement, window_shape, None, None)
+            # except Exception as e:
+            #     print(f"An error occurred while creating the window: {e}")
+            #     raise
+
+            # # Relate the window to the opening element
+            # self.ifcfile.createIfcRelFillsElement(
+            #     self.create_guid(), owner_history, None, None, opening_element, window)
+            # self.ifcfile.createIfcRelContainedInSpatialStructure(self.create_guid(
+            # ), owner_history, "Building Storey Container", None, [wall, window], wall_storey)
 
         except Exception as e:
             print(f"An error occurred while creating the void: {e}")
             raise
 
-        return opening_element
-    
     def calc_direction(self, start_coord, end_coord):
         """
         Calculates and returns the 3D vector that describes how to travel between the start and end coordinates.
 
-        Parameters: 
+        Parameters:
         - start_coord: the beginning point.
         - end_coord: the ending point.
         """
@@ -522,7 +638,6 @@ class IfcModel:
         # 2. Returns the vector.
         return direction
 
-    
     def calc_length(self, start_coord, end_coord):
         """
         Calculates and returns the distance between the start and end coordinates.
@@ -536,7 +651,6 @@ class IfcModel:
         # 2. Returns the length
         return length
 
-    
     def calc_cross(self, dir1, dir2):
         """
         Calculates and returns the cross product of two directions.
@@ -613,7 +727,6 @@ class IfcModel:
         # 4. Return the array of grid lines and array of grid axes
         return grid_lines, grid_axes
 
-    
     def save_ifc(self, filename):
         """
         Save self to the given filename.
@@ -622,7 +735,7 @@ class IfcModel:
         - filename: the name of the file to save to.
         """
         self.ifcfile.write(filename)
-    
+
     def get_wshape_profile(self, section_name):
         """
         Returns the shape of the specified section.

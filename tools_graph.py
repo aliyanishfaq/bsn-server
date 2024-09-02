@@ -202,7 +202,7 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
 """
     @tool
     def create_beam(length: float = 10.0, start_coord: str = "0,0,0", direction: tuple = "1,0,0", section_name: str = 'W16X40', story_n: int = 1) -> bool:
-        
+
         Creates a beam at the specified start coordinate with the given dimensions.
 
         Parameters:
@@ -210,7 +210,7 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
         - start_coord (str): The (x, y, z) coordinates of the beam's start point in the format "x,y,z".
         - direction (str): The direction the beam faces in the format "x,y,z". The default is X direction
         - section_name (str): The beam profile name (e.g. W16X40).
-        
+
         global retrieval_tool
 
         try:
@@ -221,7 +221,8 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
             print(start_coord, direction)
 
             # IFC model setup
-            context = IFC_MODEL.ifcfile.by_type("IfcGeometricRepresentationContext")[0]
+            context = IFC_MODEL.ifcfile.by_type(
+                "IfcGeometricRepresentationContext")[0]
             owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
             if len(IFC_MODEL.building_story_list) < story_n:
                 IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
@@ -238,7 +239,8 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
             # 1. Define beam starting point, hosting axis, & direction.
             bm_axis2placement = IFC_MODEL.ifcfile.createIfcAxis2Placement3D(
                 IFC_MODEL.ifcfile.createIfcCartesianPoint(start_coord))
-            bm_axis2placement.Axis = IFC_MODEL.ifcfile.createIfcDirection(direction)
+            bm_axis2placement.Axis = IFC_MODEL.ifcfile.createIfcDirection(
+                direction)
 
             # Calculate cross product & convert np.float64 to Python float
             crossprod = tuple(np.cross(direction, Z))
@@ -246,7 +248,8 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
             # modify the elements from np.float64 to Python float
             for i in range(len(crossprod_list)):
                 crossprod_list[i] = float(crossprod_list[i])
-            crossprod = tuple(crossprod_list)  # convert the list back to a tuple
+            # convert the list back to a tuple
+            crossprod = tuple(crossprod_list)
 
             bm_axis2placement.RefDirection = IFC_MODEL.ifcfile.createIfcDirection(
                 crossprod)
@@ -541,11 +544,12 @@ def create_wall(story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = 
             # 5. Create the wall
             wall = IFC_MODEL.create_wall(
                 context, owner_history, wall_placement, length, height, thickness)
+            wall_guid = wall.GlobalId
             IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
             ), owner_history, "Building story Container", None, [wall], story)
 
             IFC_MODEL.save_ifc("public/canvas.ifc")
-        return True
+        return True, wall_guid
     except Exception as e:
         print(f"Error creating wall: {e}")
         raise
@@ -581,9 +585,10 @@ def create_isolated_footing(story_n: int = 1, location: tuple = (0.0, 0.0, 0.0),
         owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
 
         # Call the function in ifc.py to create the footing
-        footing = IFC_MODEL.create_isolated_footing(location, length, width, thickness)
+        footing = IFC_MODEL.create_isolated_footing(
+            location, length, width, thickness)
         IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-            ), owner_history, "Building story Container", None, [footing], story)
+        ), owner_history, "Building story Container", None, [footing], story)
 
         # Save structure
         IFC_MODEL.save_ifc("public/canvas.ifc")
@@ -593,6 +598,7 @@ def create_isolated_footing(story_n: int = 1, location: tuple = (0.0, 0.0, 0.0),
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
+
 
 @tool
 def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0), end_point: tuple = (10.0, 0.0, 0.0), width: float = 1.0, depth: float = 1.0) -> bool:
@@ -618,16 +624,18 @@ def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0),
         print(f"elevation: {elevation}")
 
         # Adjust start and end points Z-coordinate by adding the story's elevation
-        start_point = (start_point[0], start_point[1], start_point[2] + elevation)
+        start_point = (start_point[0], start_point[1],
+                       start_point[2] + elevation)
         end_point = (end_point[0], end_point[1], end_point[2] + elevation)
 
         # IFC model information
         owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
 
         # Call the function in ifc.py to create the continuous footing
-        footing = IFC_MODEL.create_strip_footing(start_point, end_point, width, depth)
+        footing = IFC_MODEL.create_strip_footing(
+            start_point, end_point, width, depth)
         IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-            ), owner_history, "Building story Container", None, [footing], story)
+        ), owner_history, "Building story Container", None, [footing], story)
 
         # Save structure
         IFC_MODEL.save_ifc("public/canvas.ifc")
@@ -637,35 +645,60 @@ def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0),
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
-    
+
 
 @tool
-def create_void_in_wall(host_element, void_placement, width, height, depth):
+def create_void_in_wall(host_wall_id=None, width=1.0, height=1.0, depth=1.0, void_location=(1.0, 0.0, 1.0)) -> bool:
     """
     Creates a void in the specified host element and commits it to the IFC file.
 
     Parameters:
-    - host_element: The host element in which the void will be created.
-    - void_placement: The local placement of the void.
-    - void_width: The width of the void.
-    - void_height: The height of the void.
-    - void_depth: The depth of the void (thickness of the host element).
-    - ifc_file_path: The path to the IFC file to save the changes.
+    - host_wall_id: The GUID of the IFC wall element in which the void will be created.
+    - width (float): The width of the void (X axis).
+    - height (float): The height of the void (Z axis).
+    - depth (float): The depth of the void (thickness of the wall) (Y axis).
+    - void_location (tuple): The local coordinates (x, y, z) of the void relative to the wall. Each value in this tuple should be a float. Example: (0., 0., 0.)
     """
     try:
-        # Call the create_void_in_wall method from the IFCModel class
-        void_element = IFC_MODEL.create_void_in_wall(host_element, void_placement, width, height, depth)
-        
-        # Save structure
+        print(
+            f"host_wall_id: {host_wall_id}, width: {width}, height: {height}, depth: {depth}, void_location: {void_location}")
+        # Retrieve wall with element ID
+        walls = IFC_MODEL.ifcfile.by_type("IfcWall")
+        print("All of the walls: ", walls)
+        host_wall = None
+        for wall in walls:
+            if str(wall.GlobalId).strip() == str(host_wall_id).strip():
+                host_wall = wall
+                break
+
+        if host_wall is None:
+            raise ValueError(f"No wall found with GlobalId: {host_wall_id}")
+
+        # Ensure void_location is a tuple of (X, Y, Z)
+        try:
+            void_location = tuple(float(coord) for coord in void_location)
+            print(
+                f"Void Location: {void_location}, Void Location type: {type(void_location)}")
+        except:
+            print(
+                f"Cannot convert void_location to correct tuples. Original void_location: {void_location}")
+            raise ValueError
+
+        # Create void element
+        IFC_MODEL.create_void_in_wall(
+            wall=host_wall, width=width, height=height, depth=depth, void_location=void_location)
+
+        # # Save structure
         IFC_MODEL.save_ifc("public/canvas.ifc")
         retrieval_tool = parse_ifc()
-        
+
         print("Void created and committed to the IFC file successfully.")
-        return void_element
+        return True
     except Exception as e:
         print(f"An error occurred while creating the void: {e}")
         raise
-        
+
+
 @tool
 def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 0.), (100., 100., 0.), (100., 0., 0.)], slab_thickness: float = 1.0) -> bool:
     """
@@ -723,7 +756,7 @@ def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 
                 "root.create_entity", IFC_MODEL.ifcfile, ifc_class="IfcSlabType")
             ifcopenshell.api.run("type.assign_type", IFC_MODEL.ifcfile,
                                  related_objects=[slab], relating_type=ifc_slabtype)
-            
+
         except Exception as e:
             print(f"Error creating slab boundary: {e}")
             raise
@@ -806,7 +839,8 @@ def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (1
     - roof_thickness (float): The thickness of the roof.
     """
     try:
-        print(f"story_n: {story_n}, point_list: {point_list}, roof_thickness: {roof_thickness}")
+        print(
+            f"story_n: {story_n}, point_list: {point_list}, roof_thickness: {roof_thickness}")
         try:
             # 1. Get model information
             context = IFC_MODEL.ifcfile.by_type(
@@ -959,7 +993,7 @@ def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (1
             # 8. Assign representation using ifcopenshell.api.run
             ifcopenshell.api.run("geometry.assign_representation", IFC_MODEL.ifcfile,
                                  product=roof, representation=shape_representation)
-            
+
         except Exception as e:
             print(f"Error assigning representation: {e}")
             raise
@@ -1015,9 +1049,10 @@ def create_isolated_footing(story_n: int = 1, location: tuple = (0.0, 0.0, 0.0),
         owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
 
         # Call the function in ifc.py to create the footing
-        footing = IFC_MODEL.create_isolated_footing(location, length, width, thickness)
+        footing = IFC_MODEL.create_isolated_footing(
+            location, length, width, thickness)
         IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-            ), owner_history, "Building story Container", None, [footing], story)
+        ), owner_history, "Building story Container", None, [footing], story)
 
         # Save structure
         IFC_MODEL.save_ifc("public/canvas.ifc")
@@ -1027,6 +1062,7 @@ def create_isolated_footing(story_n: int = 1, location: tuple = (0.0, 0.0, 0.0),
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
+
 
 @tool
 def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0), end_point: tuple = (10.0, 0.0, 0.0), width: float = 1.0, depth: float = 1.0) -> bool:
@@ -1052,16 +1088,18 @@ def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0),
         print(f"elevation: {elevation}")
 
         # Adjust start and end points Z-coordinate by adding the story's elevation
-        start_point = (start_point[0], start_point[1], start_point[2] + elevation)
+        start_point = (start_point[0], start_point[1],
+                       start_point[2] + elevation)
         end_point = (end_point[0], end_point[1], end_point[2] + elevation)
 
         # IFC model information
         owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
 
         # Call the function in ifc.py to create the continuous footing
-        footing = IFC_MODEL.create_strip_footing(start_point, end_point, width, depth)
+        footing = IFC_MODEL.create_strip_footing(
+            start_point, end_point, width, depth)
         IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-            ), owner_history, "Building story Container", None, [footing], story)
+        ), owner_history, "Building story Container", None, [footing], story)
 
         # Save structure
         IFC_MODEL.save_ifc("public/canvas.ifc")
@@ -1071,34 +1109,7 @@ def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0),
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
-    
 
-@tool
-def create_void_in_wall(host_element, void_placement, width, height, depth):
-    """
-    Creates a void in the specified host element and commits it to the IFC file.
-
-    Parameters:
-    - host_element: The host element in which the void will be created.
-    - void_placement: The local placement of the void.
-    - void_width: The width of the void.
-    - void_height: The height of the void.
-    - void_depth: The depth of the void (thickness of the host element).
-    - ifc_file_path: The path to the IFC file to save the changes.
-    """
-    try:
-        # Call the create_void_in_wall method from the IFCModel class
-        void_element = IFC_MODEL.create_void_in_wall(host_element, void_placement, width, height, depth)
-        
-        # Save structure
-        IFC_MODEL.save_ifc("public/canvas.ifc")
-        retrieval_tool = parse_ifc()
-        
-        print("Void created and committed to the IFC file successfully.")
-        return void_element
-    except Exception as e:
-        print(f"An error occurred while creating the void: {e}")
-        raise
 
 @tool
 def search_canvas(search_query: str, search_file: str = 'canvas.ifc') -> str:
@@ -1225,7 +1236,8 @@ def refresh_canvas() -> bool:
     The function is invoked when user types in 'refresh', 'refresh canvas' or 'refresh the canvas'
     """
     try:
-        sio.emit('fileChange', {'userId': 'BuildSync', 'message': 'A new change has been made to the file', 'file_name': 'public/canvas.ifc'})
+        sio.emit('fileChange', {
+                 'userId': 'BuildSync', 'message': 'A new change has been made to the file', 'file_name': 'public/canvas.ifc'})
         return True
     except Exception as e:
         print(f"An error occurred: {e}")
