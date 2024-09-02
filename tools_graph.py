@@ -1318,18 +1318,3 @@ async def element_to_text(element: object) -> str:
     str: A string describing the element in a language model-friendly way.
     """
     return "Description of element"
-
-
-if __name__ == "__main__":
-    create_session()
-    result, wall_guid = create_wall(
-        story_n=1, start_coord="0,0,0", end_coord="10,0,0", height=10, thickness=0.5)
-
-    host_wall_id = wall_guid
-    width = 4.0
-    height = 3.0
-    depth = 0.5
-    void_location = (2.0, 0.0, 3.0)
-
-    create_void_in_wall(host_wall_id=host_wall_id, width=width,
-                        height=height, depth=depth, void_location=void_location)
