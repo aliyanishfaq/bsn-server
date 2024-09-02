@@ -120,19 +120,6 @@ for key, value in examples.items():
 
 
 def create_agent(llm, tools):
-    for tool in tools:
-        print(f"Tool: {tool}, Type: {type(tool)}")
-
-    # Ensure all tools have a 'name' attribute
-    try:
-        tool_names = [tool.name for tool in tools]
-    except AttributeError as e:
-        print(f"Error: {e}")
-        for tool in tools:
-            if not hasattr(tool, 'name'):
-                print(
-                    f"Tool without 'name' attribute: {tool}, Type: {type(tool)}")
-        raise
     """Create an agent."""
     prompt = ChatPromptTemplate.from_messages(
         [
