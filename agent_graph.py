@@ -202,7 +202,11 @@ async def stream_with_backoff(data: dict, config: dict):
     user_command = data.get('message')
     image_data = data.get('imageData')
     message_type = data.get('messageType')
-
+    if 'context' in data:
+        context = data.get('context')
+        print("Context: ", context)
+    else:
+        context = None
     if message_type == 'Image':
         prefix = re.match(r'data:image/(\w+);base64,(.+)', image_data)
         try:
@@ -224,6 +228,28 @@ async def stream_with_backoff(data: dict, config: dict):
                                 "data": encoded_image,
                             },
                         },
+                        {
+                            "type": "text",
+                            "text": user_command
+                        }
+                    ],
+                }]
+        }
+    elif context:
+        messages = {
+            "messages": [
+                {
+                    "role": "system",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": context
+                        }
+                    ],
+                },
+                {
+                    "role": "user",
+                    "content": [
                         {
                             "type": "text",
                             "text": user_command

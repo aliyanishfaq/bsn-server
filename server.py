@@ -91,7 +91,7 @@ async def userAction(sid, data):
     print('User Action recieved')
     await sio.emit('userAction', data)
     user_command = data['message']
-    if True: #user_command.startswith('/')
+    if True:  # user_command.startswith('/')
         unique_string = f"{user_command}-{time.time()}"
         unique_hash = "ai-" + \
             hashlib.sha256(unique_string.encode()).hexdigest()
@@ -100,6 +100,11 @@ async def userAction(sid, data):
         await sio.emit('aiActionStart', {'hash':  unique_hash})
         await model_streamer(sid, data, unique_hash)
         await sio.emit('aiActionEnd', {'hash': unique_hash})
+
+
+@ sio.event
+async def highlightedFragments(sid, data):
+    print(f'highlightedFragments recieved {sid}, {data}')
 
 
 @ sio.event
