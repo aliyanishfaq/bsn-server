@@ -1121,7 +1121,7 @@ def search_canvas(search_query: str, search_file: str = 'canvas.ifc') -> str:
     """
     global client
     try:
-        loaded_file = ifcopenshell.open('tmp/' + search_file)
+        loaded_file = ifcopenshell.open('public/' + search_file)
         res = client.chat.completions.create(
             model='gpt-4o',
             response_format={"type": "json_object"},
