@@ -230,7 +230,7 @@ class IfcModel:
             ifcclosedprofile, ifcaxis2placement, ifcdir, extrusion)
         return ifcextrudedareasolid
 
-    def create_building_stories(self, elevation, name):
+    def create_building_stories(self, elevation, name, material):
         """
         Adds a story to the building based on elevation and the name.
 
@@ -244,9 +244,10 @@ class IfcModel:
         # 2. Creates the story and adds it to the list of storys.
         building_story = self.ifcfile.createIfcBuildingStorey(self.create_guid(), self.owner_history, str(
             name), None, None, story_placement, None, None, "ELEMENT", float(elevation))
+        self.add_style_to_product(material, building_story)
         self.building_story_list.append(building_story)
 
-    def create_wall(self, context, owner_history, wall_placement, length, height, thickness):
+    def create_wall(self, context, owner_history, wall_placement, length, height, thickness, material):
         """
         Creates and returns a single wall in the IFC model, based on placement, height, length, and thickness.
 
@@ -285,7 +286,18 @@ class IfcModel:
         # 4. Create and return wall
         wall = self.ifcfile.createIfcWallStandardCase(self.create_guid(), owner_history, "Wall", None, None,
                                                       wall_placement, product_shape, None)
+        self.add_style_to_product(material, wall)
         return wall
+    def add_style_to_product(self, name, product) :
+        try:
+            material_set = self.materials[name]
+            file3D = ifcopenshell.api.context.add_context(self.ifcfile, context_type="Model")
+            body = ifcopenshell.api.context.add_context(self.ifcfile, context_type="Model", context_identifier="Body", 
+                                                    target_view="MODEL_VIEW", parent=file3D)
+            ifcopenshell.api.material.assign_material(self.ifcfile, products=[product], material=material_set[0])
+            return ifcopenshell.api.style.assign_material_style(self.ifcfile, material=material_set[0], style=material_set[1], context=body)
+        except KeyError:
+            return None
 
     def create_column(self, context, owner_history, column_placement, height, section_name):
         """

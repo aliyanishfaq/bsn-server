@@ -87,7 +87,7 @@ def create_session() -> bool:
 
 
 @tool
-def create_building_story(elevation: float = 0.0, name: str = "Level 1") -> bool:
+def create_building_story(elevation: float = 0.0, name: str = "Level 1", material: str = None) -> bool:
     """
     Creates building stories with the specified amount, elevation, and height.
 
@@ -495,7 +495,7 @@ def create_grid(grids_x_distance_between: float = 10.0, grids_y_distance_between
 
 
 @tool
-def create_wall(story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = "0,0,0", height: float = 30.0, thickness: float = 1.0) -> bool:
+def create_wall(story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = "0,0,0", height: float = 30.0, thickness: float = 1.0, material: str = None) -> bool:
     """
     Creates a single wall in the Revit document based on specified start and end coordinates, level, wall type, structural flag, height, and thickness.
 
