@@ -40,6 +40,7 @@ class IfcModel:
             "%Y-%m-%dT%H:%M:%S", time.gmtime(self.timestamp))
         self.project_globalid = self.create_guid()
         self.materials = dict()
+        self.support_types = dict()
         # 2. If there is no file name provided, create a new file. anad store all the necessary info
         if filename is None:
             self.ifcfile = self.initialize_ifc()
@@ -88,10 +89,10 @@ class IfcModel:
                 representations = material_representations.Representations
                 for representation in representations :
              """
-        self.add_material("Wood", 1, 0.5764705882, 0)
+        self.add_support_type("Wood", 1, 0.5764705882, 0, self.get_rectangle)
         self.add_material("Brick", 1, 0, 0)
-        self.add_material("Concrete", 0.662745098, 0.662745098, 0.662745098)
-             
+        self.add_support_type("Concrete", 0.662745098, 0.662745098, 0.662745098, self.get_rectangle)
+        self.add_support_type("Steel", 106 / 255, 127 / 255, 169 / 255, self.get_wshape_profile)    
 
 
 
@@ -103,7 +104,10 @@ class IfcModel:
         })
         self.materials[name] = (material, style)
         return self.materials[name]
-
+    
+    def add_support_type(self, name, red, green, blue, shaper): 
+        self.add_material(name, red, green, blue)
+        self.support_types[name] = shaper
     def create_guid(self):
         """
         Create and return a unique identifier.
@@ -230,7 +234,7 @@ class IfcModel:
             ifcclosedprofile, ifcaxis2placement, ifcdir, extrusion)
         return ifcextrudedareasolid
 
-    def create_building_stories(self, elevation, name, material):
+    def create_building_stories(self, elevation, name):
         """
         Adds a story to the building based on elevation and the name.
 
@@ -244,7 +248,6 @@ class IfcModel:
         # 2. Creates the story and adds it to the list of storys.
         building_story = self.ifcfile.createIfcBuildingStorey(self.create_guid(), self.owner_history, str(
             name), None, None, story_placement, None, None, "ELEMENT", float(elevation))
-        self.add_style_to_product(material, building_story)
         self.building_story_list.append(building_story)
 
     def create_wall(self, context, owner_history, wall_placement, length, height, thickness, material):
@@ -299,7 +302,7 @@ class IfcModel:
         except KeyError:
             return None
 
-    def create_column(self, context, owner_history, column_placement, height, section_name):
+    def create_column(self, context, owner_history, column_placement, height, section_name, material):
         """
         Creates and returns a single column in the IFC model, based on placement and height.
 
@@ -831,6 +834,19 @@ class IfcModel:
         # 4. Convert the point list to a closed profile.
         ifcpts = [self.ifcfile.createIfcCartesianPoint(
             point) for point in point_list]
+        polyline = self.ifcfile.createIfcPolyline(ifcpts)
+        ifcclosedprofile = self.ifcfile.createIfcArbitraryClosedProfileDef(
+            "AREA", None, polyline)
+
+        # 5. Return the closed profile
+        return ifcclosedprofile
+    def get_rectangle(self, section_name) :
+        points = [
+            (0, 0), (0, 1), (1, 1), (1, 0)
+        ]
+        ifcpts = [
+            self.ifcfile.createIfcCartesianPoint(point) for point in points
+        ]
         polyline = self.ifcfile.createIfcPolyline(ifcpts)
         ifcclosedprofile = self.ifcfile.createIfcArbitraryClosedProfileDef(
             "AREA", None, polyline)
