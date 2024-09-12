@@ -87,7 +87,7 @@ def create_session() -> bool:
 
 
 @tool
-def create_building_story(elevation: float = 0.0, name: str = "Level 1", material: str = None) -> bool:
+def create_building_story(elevation: float = 0.0, name: str = "Level 1") -> bool:
     """
     Creates building stories with the specified amount, elevation, and height.
 
@@ -700,7 +700,7 @@ def create_void_in_wall(host_wall_id=None, width=1.0, height=1.0, depth=2.0, voi
 
 
 @tool
-def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 0.), (100., 100., 0.), (100., 0., 0.)], slab_thickness: float = 1.0) -> bool:
+def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 0.), (100., 100., 0.), (100., 0., 0.)], slab_thickness: float = 1.0, material: str = None) -> bool:
     """
     Creates a floor in the specified story with given dimensions and thickness.
 
@@ -792,6 +792,7 @@ def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 
             extrusion = slab_thickness
             slab_solid = IFC_MODEL.ifcfile.createIfcExtrudedAreaSolid(
                 slab_profile,  axis2placement, ifc_direction, extrusion)
+            IFC_MODEL.add_style_to_product(material, slab_solid)
             shape_representation = IFC_MODEL.ifcfile.createIfcShapeRepresentation(ContextOfItems=context,
                                                                                   RepresentationIdentifier='Body',
                                                                                   RepresentationType='SweptSolid',
