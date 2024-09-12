@@ -39,6 +39,7 @@ class IfcModel:
         self.timestring = time.strftime(
             "%Y-%m-%dT%H:%M:%S", time.gmtime(self.timestamp))
         self.project_globalid = self.create_guid()
+        self.materials = dict()
         # 2. If there is no file name provided, create a new file. anad store all the necessary info
         if filename is None:
             self.ifcfile = self.initialize_ifc()
@@ -77,7 +78,31 @@ class IfcModel:
 
         # 2. Otherwise open the existing file.
         else:
-            self.ifcfile = ifcopenshell.open(filename)
+             self.ifcfile = ifcopenshell.open(filename)
+             """
+             Note: this fragment is supposed to be for retrieval and mapping of existing styles and materials
+             material_representations = self.ifcfile.by_type("IfcMaterialDefinitionRepresentation")
+             for material_representation in material_representations :
+                material = material_representation.RepresentedMaterial
+                key = material.Name
+                representations = material_representations.Representations
+                for representation in representations :
+             """
+        self.add_material("Wood", 1, 0.5764705882, 0)
+        self.add_material("Brick", 1, 0, 0)
+        self.add_material("Concrete", 0.662745098, 0.662745098, 0.662745098)
+             
+
+
+
+    def add_material(self, name, red, green, blue) :
+        style = ifcopenshell.api.style.add_style(self.ifcfile)
+        material = ifcopenshell.api.material.add_material(self.ifcfile, name)
+        ifcopenshell.api.style.add_surface_style(self.ifcfile, style=style, ifc_class="IfcSurfaceStyleShading", attributes={
+            "SurfaceColour": {"Name": None, "Red" : red, "Green": green, "Blue": blue}
+        })
+        self.materials[name] = (material, style)
+        return self.materials[name]
 
     def create_guid(self):
         """
