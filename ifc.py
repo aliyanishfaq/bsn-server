@@ -92,7 +92,8 @@ class IfcModel:
         self.add_support_type("Wood", 1, 0.5764705882, 0, self.get_rectangle)
         self.add_material("Brick", 1, 0, 0)
         self.add_support_type("Concrete", 0.662745098, 0.662745098, 0.662745098, self.get_rectangle)
-        self.add_support_type("Steel", 106 / 255, 127 / 255, 169 / 255, self.get_wshape_profile)    
+        self.add_support_type("Steel", 106 / 255, 127 / 255, 169 / 255, self.get_wshape_profile)
+        self.support_types.setdefault(self.get_rectangle)    
 
 
 
@@ -314,7 +315,7 @@ class IfcModel:
         - section_name: the name of the section.
         """
         # 1. Create the column profile
-        ifcclosedprofile = self.get_wshape_profile(section_name)
+        ifcclosedprofile = self.support_types[material](section_name)
         # print('IFC Closed Profile: ', dir(ifcclosedprofile))
         ifcclosedprofile.ProfileName = section_name
         # 2. Create the 3D extrusion.
@@ -330,10 +331,11 @@ class IfcModel:
                                                                      body_rep])
         # 4. Create the final column and return it
         column = self.ifcfile.createIfcColumn(self.create_guid(
-        ), owner_history, "W-Shaped Column", None, None, column_placement, product_shape, None)
+        ), owner_history, material + " Column", None, None, column_placement, product_shape, None)
+        self.add_style_to_product(column)
         return column
 
-    def create_beam(self, context, owner_history, beam_placement, length, section_name):
+    def create_beam(self, context, owner_history, beam_placement, length, section_name, material):
         """
         Creates and returns a single beam in the IFC model, based on placement and length.
 
@@ -345,7 +347,7 @@ class IfcModel:
         - section_name: the name of the section.
         """
         # 1. Create the beam profile
-        point_list = self.get_wshape_points(section_name)
+        point_list = self.support_types[material](section_name)
 
         # 2. Create extrusion
         extrusion_placement = self.create_ifcaxis2placement()
@@ -366,6 +368,7 @@ class IfcModel:
         # 5. Create the beam and return it
         beam = self.ifcfile.createIfcBeam(self.create_guid(), owner_history, "Beam", None, None,
                                           beam_placement, product_shape, None)
+        self.add_style_to_product(beam)
         return beam
 
     def create_isolated_footing(self, location: tuple, length: float, width: float, thickness: float) -> None:
