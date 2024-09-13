@@ -3,6 +3,7 @@ from ifc import IfcModel
 from langchain_core.tools import tool
 import ifcopenshell
 import ifcopenshell.api
+import ifcopenshell
 from ifcopenshell.api import run
 import asyncio
 from socket_server import sio

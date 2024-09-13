@@ -6,6 +6,9 @@ import ifcopenshell.util.element
 import time
 import tempfile
 import ifcopenshell
+import ifcopenshell.api.material
+import ifcopenshell.api.style
+import ifcopenshell.api.context
 import uuid
 import sys
 import pdb
