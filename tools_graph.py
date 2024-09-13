@@ -171,7 +171,7 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
 
         # 4-4. Create extruded area section for beam.
         bm_extrusion = IFC_MODEL.ifcfile.createIfcExtrudedAreaSolid()
-        ifcclosedprofile = IFC_MODEL.get_wshape_profile(section_name)
+        ifcclosedprofile = IFC_MODEL.support_types[material](section_name)
         ifcclosedprofile.ProfileName = section_name
         bm_extrusion.SweptArea = ifcclosedprofile
         bm_extrusion.Position = bm_extrudePlacement
@@ -182,7 +182,7 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
         # 5. Create shape representation for beam.
         bm_rep = IFC_MODEL.ifcfile.createIfcShapeRepresentation(
             context, "Body", "SweptSolid", [bm_extrusion])
-
+        IFC_MODEL.add_style_to_product(material, bm_rep)
         # 6. Create a product shape for beam.
         bm_prod = IFC_MODEL.ifcfile.createIfcProductDefinitionShape()
         bm_prod.Representations = [bm_rep]

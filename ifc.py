@@ -335,7 +335,7 @@ class IfcModel:
         # 4. Create the final column and return it
         column = self.ifcfile.createIfcColumn(self.create_guid(
         ), owner_history, material + " Column", None, None, column_placement, product_shape, None)
-        self.add_style_to_product(column)
+        self.add_style_to_product(material, column)
         return column
 
     def create_beam(self, context, owner_history, beam_placement, length, section_name, material):
@@ -371,7 +371,7 @@ class IfcModel:
         # 5. Create the beam and return it
         beam = self.ifcfile.createIfcBeam(self.create_guid(), owner_history, "Beam", None, None,
                                           beam_placement, product_shape, None)
-        self.add_style_to_product(beam)
+        self.add_style_to_product(material, beam)
         return beam
 
     def create_isolated_footing(self, location: tuple, length: float, width: float, thickness: float) -> None:
@@ -848,7 +848,7 @@ class IfcModel:
         return ifcclosedprofile
     def get_rectangle(self, section_name) :
         points = [
-            (0, 0), (0, 1), (1, 1), (1, 0)
+            [0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [1.0, 1.0], [1.0, 0.0, 0.0]
         ]
         ifcpts = [
             self.ifcfile.createIfcCartesianPoint(point) for point in points
