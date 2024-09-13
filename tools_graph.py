@@ -113,7 +113,7 @@ def create_building_story(elevation: float = 0.0, name: str = "Level 1") -> bool
 
 
 @tool
-def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_name: str = 'W16X40', story_n: int = 1) -> None:
+def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_name: str = 'W16X40', story_n: int = 1, material: str = None) -> None:
     """
     Creates a beam at the specified start coordinate with the given dimensions.
 
@@ -294,7 +294,7 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
 
 
 @tool
-def create_column(story_n: int = 1, start_coord: str = "0,0,0", height: float = 30, section_name: str = "W12X53") -> bool:
+def create_column(story_n: int = 1, start_coord: str = "0,0,0", height: float = 30, section_name: str = "W12X53", material: str = None) -> bool:
     """
     Creates a single column in the Revit document based on specified location, width, depth, and height.
 
@@ -331,7 +331,7 @@ def create_column(story_n: int = 1, start_coord: str = "0,0,0", height: float = 
 
         # 6. Create the column.
         column = IFC_MODEL.create_column(
-            context=context, owner_history=owner_history, column_placement=column_placement, height=height, section_name=section_name)
+            context=context, owner_history=owner_history, column_placement=column_placement, height=height, section_name=section_name, material=material)
         IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
         ), owner_history, "Building story Container", None, [column], story)
 
@@ -543,7 +543,7 @@ def create_wall(story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = 
                 start_coord, Z, direction, relative_to=story_placement)
             # 5. Create the wall
             wall = IFC_MODEL.create_wall(
-                context, owner_history, wall_placement, length, height, thickness)
+                context, owner_history, wall_placement, length, height, thickness, material)
             wall_guid = wall.GlobalId
             IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
             ), owner_history, "Building story Container", None, [wall], story)
