@@ -1,0 +1,2 @@
+ifcopenshell filter=lfs diff=lfs merge=lfs -text
+ifcopenshell/** filter=lfs diff=lfs merge=lfs -text
