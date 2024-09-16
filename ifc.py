@@ -846,6 +846,27 @@ class IfcModel:
 
         # 5. Return the closed profile
         return ifcclosedprofile
+    def get_cshape_profile(self, section_data) :
+        d = float(section_data['d'].iloc[0]) / 12
+        t = float(section_data['T'].iloc[0]) / 12
+        k = float(section_data['k'].iloc[0]) / 12
+        bf = float(section_data['bf'].iloc[0]) / 12
+        tw = float(section_data['tw'].iloc[0]) / 12
+        point_list = [
+            (bf/2, 0.0), (bf/2, k), (-bf/2 + tw, d - t), # Lower right corner
+            (-bf/2 + tw, t), (bf/2, t + k), (bf/2, d), # Upper right corner
+            (-bf/2, d), # Upper left corner
+            (-bf/2, 0.0) # Lower right corner
+        ]
+        # 4. Convert the point list to a closed profile.
+        ifcpts = [self.ifcfile.createIfcCartesianPoint(
+            point) for point in point_list]
+        polyline = self.ifcfile.createIfcPolyline(ifcpts)
+        ifcclosedprofile = self.ifcfile.createIfcArbitraryClosedProfileDef(
+            "AREA", None, polyline)
+
+        # 5. Return the closed profile
+        return ifcclosedprofile
     def get_rectangle(self, section_name) :
         points = [
             [0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [1.0, 1.0], [1.0, 0.0, 0.0]
