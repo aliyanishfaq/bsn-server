@@ -867,6 +867,20 @@ class IfcModel:
 
         # 5. Return the closed profile
         return ifcclosedprofile
+    def get_lshape_profile(self, section_data) :
+        d = float(section_data['d'].iloc[0]) / 12
+        bw = float(section_data['bw'].iloc[0]) / 12
+        t = float(section_data['T'].iloc[0]) / 12
+        # Look into this more
+    def get_hssrect_profile(self, section_data) :
+        b = float(section_data['b'].iloc[0]) / 12
+        h = float(section_data['h'].iloc[0]) / 12
+        t = float(section_data['t'].iloc[0]) / 12
+        right_points = [
+            (b/2, )
+        ]
+        # Todo: use IFCArbitraryProfileDef to make this rectange and the circle dividing them into 2 separate shapes (top and bottom)
+
     def get_rectangle(self, section_name) :
         points = [
             [0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [1.0, 1.0], [1.0, 0.0, 0.0]
