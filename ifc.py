@@ -879,7 +879,8 @@ class IfcModel:
         right_points = [
             (b/2, )
         ]
-        # Todo: use IFCArbitraryProfileDef to make this rectange and the circle dividing them into 2 separate shapes (top and bottom)
+        # Todo: use IFCCompositeProfileDef to make this rectange and the circle dividing them into 2 separate shapes (top and bottom). Also,
+        # refactor out the file reading section of get_wshape_profile into its own function
 
     def get_rectangle(self, section_name) :
         points = [
