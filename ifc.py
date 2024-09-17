@@ -877,8 +877,27 @@ class IfcModel:
         h = float(section_data['h'].iloc[0]) / 12
         t = float(section_data['t'].iloc[0]) / 12
         right_points = [
-            (b/2, )
+            (0.0, -h/2), (b/2, -h/2), (b/2, h/2), (0.0, h/2), 
+            (0.0, h/2 - t), (b/2 - t, h/2 - t), (b/2 - t, -h/2 + t), (0.0, -h/2 + t)
+
         ]
+        left_points = [
+            (0.0, -h/2), (-b/2, -h/2), (-b/2, h/2), (0.0, h/2),
+            (0.0, h/2 - t), (-b/2 + t, h/2 - t), (-b/2 + t, -h/2 + t), (0.0, -h/2 + t)
+        ]
+        ifcpts_r = [self.ifcfile.createIfcCartesianPoint(
+            point_r) for point_r in right_points]
+        ifcpts_l = [self.ifcfile.createIfcCartesianPoint(
+            point_l) for point_l in left_points]
+        polyline_r = self.ifcfile.createIfcPolyline(ifcpts_r)
+        polyline_l = self.ifcfile.createIfcPolyline(ifcpts_l)
+        profile_r = self.ifcfile.createIfcArbitraryClosedProfileDef(
+            "AREA", None, polyline_r)
+        profile_l = self.ifcfile.createIfcArbitraryClosedProfileDef(
+            "AREA", None, polyline_l)
+        profile = self.ifcfile.createIfcCompositeProfileDef(
+            "AREA", None, [profile_l, profile_r], None)
+        return profile
         # Todo: use IFCCompositeProfileDef to make this rectange and the circle dividing them into 2 separate shapes (top and bottom). Also,
         # refactor out the file reading section of get_wshape_profile into its own function
 
