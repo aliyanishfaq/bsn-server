@@ -900,7 +900,36 @@ class IfcModel:
         return profile
         # Todo: use IFCCompositeProfileDef to make this rectange and the circle dividing them into 2 separate shapes (top and bottom). Also,
         # refactor out the file reading section of get_wshape_profile into its own function
-
+    def get_hssround_profile(self, section_data) :
+        r = float(section_data['r'].iloc[0]) / 12
+        t = float(section_data['t'].iloc[0]) / 12
+        right_points = [
+            (0.0, r), (r, 0.0), (0.0, -r), 
+            (0.0, -r + t), (r - t, 0.0), (0.0, r - t)
+        ]
+        left_points = [
+            (0.0, r), (-r, 0.0), (0.0, -r),
+            (0.0, -r + t), (-r + t, 0.0), (0.0, r - t)
+        ]
+        list_r = self.ifcfile.createIfcCartesianPointList2D(right_points, None)
+        list_l = self.ifcfile.createIfcCartesianPointList2D(left_points, None)
+        curve_r = self.ifcfile.createIfcIndexedPolyCurve(list_r, [
+            self.ifcfile.createIfcCurveIndex(1, 2), self.ifcfile.createIfcCurveIndex(2, 3),
+            self.ifcfile.createIfcLineIndex(3, 4), self.ifcfile.createIfcCurveIndex(4, 5),
+            self.ifcfile.createIfcCurveIndex(5, 6), self.ifcfile.createIfcLineIndex(6, 1)
+        ], None)
+        curve_l = self.ifcfile.createIfcIndexedPolyCurve(list_l, [
+            self.ifcfile.createIfcCurveIndex(1, 2), self.ifcfile.createIfcCurveIndex(2, 3),
+            self.ifcfile.createIfcLineIndex(3, 4), self.ifcfile.createIfcCurveIndex(4, 5),
+            self.ifcfile.createIfcCurveIndex(5, 6), self.ifcfile.createIfcLineIndex(6, 1)
+        ], None)
+        profile_r = self.ifcfile.createIfcArbitraryClosedProfileDef(
+            "AREA", None, curve_r)
+        profile_l = self.ifcfile.createIfcArbitraryClosedProfileDef(
+            "AREA", None, curve_l)
+        profile = self.ifcfile.createIfcCompositeProfileDef(
+            "AREA", None, [profile_l, profile_r], None)
+        return profile
     def get_rectangle(self, section_name) :
         points = [
             [0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [1.0, 1.0], [1.0, 0.0, 0.0]
