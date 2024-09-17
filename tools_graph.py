@@ -1157,7 +1157,9 @@ async def step_by_step_planner(user_request: str) -> str:
     """
     The function is provided with the user_request. If the user's request is unclear, lacks architectural clarity, or is not specific,
     the function is invoked to make the request more clearer and specific with step by step guidelines of the process to perform the user's
-    request. The function should not be unnecessarily called for simple requests to avoid latency.
+    request. The function should not be unnecessarily called for simple requests to avoid latency and should be used for complex requests e.g.
+    Create a basic 3D model of a four-story residential house with dimensions of 10 by 6 meters,
+    Create a 3-story L-shaped house with each leg of the L being 8 meters long and 4 meters wide. Place a door at the corner of the L and a window on each side of the L. I want the whole building to be made of wood.
 
     Parameters:
     - user_request (str): The user request that the user inputs.
