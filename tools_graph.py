@@ -1,4 +1,3 @@
-from ifc_parser import parse_ifc
 from ifc import IfcModel
 from langchain_core.tools import tool
 import ifcopenshell
@@ -14,14 +13,18 @@ import json
 import numpy as np
 from feature_extractor import IfcEntityFeatureExtractor
 from tool_helpers import format_output_search_canvas
+from groq import Groq
 
 load_dotenv()
 
 global levels_dict
 levels_dict = {}
 
-global client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+global openai_client
+openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+global groq_client
+groq_client = Groq(api_key=os.getenv('GROQ_API_KEY'))
+
 
 ## ---- TOOLS FOR MODEL TO CALL ----- #
 
@@ -197,101 +200,6 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
-
-
-"""
-    @tool
-    def create_beam(length: float = 10.0, start_coord: str = "0,0,0", direction: tuple = "1,0,0", section_name: str = 'W16X40', story_n: int = 1) -> bool:
-
-        Creates a beam at the specified start coordinate with the given dimensions.
-
-        Parameters:
-        - length (float): The length of the beam.
-        - start_coord (str): The (x, y, z) coordinates of the beam's start point in the format "x,y,z".
-        - direction (str): The direction the beam faces in the format "x,y,z". The default is X direction
-        - section_name (str): The beam profile name (e.g. W16X40).
-
-        global retrieval_tool
-
-        try:
-            # format coord and direction
-            start_coord = tuple(list(map(float, start_coord.split(','))))
-            direction = tuple(list(map(float, direction.split(','))))
-
-            print(start_coord, direction)
-
-            # IFC model setup
-            context = IFC_MODEL.ifcfile.by_type(
-                "IfcGeometricRepresentationContext")[0]
-            owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
-            if len(IFC_MODEL.building_story_list) < story_n:
-                IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
-            story = IFC_MODEL.building_story_list[story_n - 1]
-
-            # 0. Initiate IfcBeam
-            # Note: eventually, we'll want to pass in various beam names.
-            bm = IFC_MODEL.ifcfile.createIfcBeam(
-                IFC_MODEL.create_guid(), owner_history, "Beam")
-
-            # 1-3. Define beam placement
-            Z = (0.0, 0.0, 1.0)
-
-            # 1. Define beam starting point, hosting axis, & direction.
-            bm_axis2placement = IFC_MODEL.ifcfile.createIfcAxis2Placement3D(
-                IFC_MODEL.ifcfile.createIfcCartesianPoint(start_coord))
-            bm_axis2placement.Axis = IFC_MODEL.ifcfile.createIfcDirection(
-                direction)
-
-            # Calculate cross product & convert np.float64 to Python float
-            crossprod = tuple(np.cross(direction, Z))
-            crossprod_list = list(crossprod)  # convert tuple to list
-            # modify the elements from np.float64 to Python float
-            for i in range(len(crossprod_list)):
-                crossprod_list[i] = float(crossprod_list[i])
-            # convert the list back to a tuple
-            crossprod = tuple(crossprod_list)
-
-            bm_axis2placement.RefDirection = IFC_MODEL.ifcfile.createIfcDirection(
-                crossprod)
-
-            # 2. Create LocalPlacement for beam.
-            bm_placement = IFC_MODEL.ifcfile.createIfcLocalPlacement(
-                story, bm_axis2placement)  # can pass building stories as host
-            bm.ObjectPlacement = bm_placement
-
-            # 3. Create 3D axis placement for extrusion.
-            bm_extrudePlacement = IFC_MODEL.ifcfile.createIfcAxis2Placement3D(
-                IFC_MODEL.ifcfile.createIfcCartesianPoint((0., 0., 0.)))
-
-            # 4. Create extruded area section for beam.
-            bm_extrusion = IFC_MODEL.ifcfile.createIfcExtrudedAreaSolid()
-            bm_extrusion.SweptArea = IFC_MODEL.get_wshape_profile(section_name)
-            bm_extrusion.Position = bm_extrudePlacement
-            bm_extrusion.ExtrudedDirection = IFC_MODEL.ifcfile.createIfcDirection(
-                (0.0, 0.0, 1.0))
-            bm_extrusion.Depth = length
-
-            # 5. Create shape representation for beam.
-            bm_rep = IFC_MODEL.ifcfile.createIfcShapeRepresentation(
-                context, "Body", "SweptSolid", [bm_extrusion])
-
-            # 6. Create a product shape for beam.
-            bm_prod = IFC_MODEL.ifcfile.createIfcProductDefinitionShape()
-            bm_prod.Representations = [bm_rep]
-
-            bm.Representation = bm_prod
-
-            # 7. Add beam to IFC file & save
-            IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-            ), owner_history, "Building story Container", None, [bm], story)
-
-            IFC_MODEL.save_ifc("public/canvas.ifc")
-            return True
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            raise
-"""
-
 
 @tool
 def create_column(story_n: int = 1, start_coord: str = "0,0,0", height: float = 30, section_name: str = "W12X53") -> bool:
@@ -1119,10 +1027,10 @@ def search_canvas(search_query: str, search_file: str = 'canvas.ifc') -> str:
     - search_query (str): The user query that the user inputs. e.g. find all walls, find all columns, find all beams, find left most wall
     - search file (str): The file to be searched. If the user wants to search the canvas (the current file they are working on), the value should be canvas.ifc. If the user wants to search the loaded file, the value should be user.ifc
     """
-    global client
+    global openai_client
     try:
         loaded_file = ifcopenshell.open('public/' + search_file)
-        res = client.chat.completions.create(
+        res = openai_client.chat.completions.create(
             model='gpt-4o',
             response_format={"type": "json_object"},
             messages=[
@@ -1189,11 +1097,11 @@ def delete_objects(delete_query: str) -> bool:
     Parameters:
     - delete_query (str): The user query that the user inputs. e.g. delete the right most wall, delete all the columns etc.
     """
-    global client
+    global openai_client
     try:
         relevant_objects = search_canvas(delete_query)
         print('relevant_objects', relevant_objects)
-        res = client.chat.completions.create(
+        res = openai_client.chat.completions.create(
             model='gpt-4o',
             response_format={"type": "json_object"},
             messages=[
@@ -1242,6 +1150,110 @@ def refresh_canvas() -> bool:
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
+
+
+@tool
+async def step_by_step_planner(user_request: str) -> str:
+    """
+    The function is provided with the user_request. If the user's request is unclear, lacks architectural clarity, or is not specific,
+    the function is invoked to make the request more clearer and specific with step by step guidelines of the process to perform the user's
+    request. The function should not be unnecessarily called for simple requests to avoid latency.
+
+    Parameters:
+    - user_request (str): The user request that the user inputs.
+
+    Returns:
+    - step_by_step_plan (str): The step by step plan to perform the user's request.
+    """
+    architect_prompt = f"""
+    You are an experienced architect who can design floor/building plans based on the user’s needs. You will use your extensive architectural knowledge to expand and supplement the user’s original description and ultimately express your design in structured text format.
+    Depending on the user’s specific needs, try to include in the output the starting and ending points of each wall, the location of windows and doors (offset relative to the start of the wall), the boundaries of interior rooms/functional areas, and the position and geometric details of other components required for a complete building.
+    Please refer to basic architectural rules, such as:
+    Foundation: Ensure a solid foundation slab that can support the entire structure. The walls, slabs, and roof must be designed to distribute weight evenly to the foundation.
+    Wall Configuration: Arrange walls to define the building's perimeter and internal spaces. Ensure that load-bearing walls are adequately spaced and placed to distribute the weight of the upper floors. Ensure that wall elevations properly match for each floor.
+    Slab Design: Place slabs for each floor. They should be leveled and supported by the walls, providing stability and separating different floors.
+    Roof Construction: Design the roof to cover the entire building, protecting it from weather elements.
+    Window Placement: Install windows strategically to provide natural light and ventilation to rooms. Ensure window locations are proportionate to the room size.
+    Door Placement: Position doors for easy access to different rooms and areas. The main entrance to the building should be prominent and easy to locate, with interior doors facilitating smooth movement.
+    Interior Layout: Organize and define the interior room layout logically. Use interior walls to separate different functional rooms and ensure easy flow between them with appropriately placed doors.
+    Structural Integrity: Ensure all elements (walls, slabs, roof) are securely connected and stable.
+    Compliance: Avoid clashing/overlapping building components, such as overlapping partitions between different areas and overlapping window and door locations. Adjacent rooms can share internal partitions. Rooms can also utilize exterior walls.
+    Make your design spatially and geometrically rational. Use feet units. Minimize other prose.
+    Here is a sample conversation:
+    User: I want to build an office building. I want the building to have 3 floors, and the layout of each floor to be the same. Each floor has 6 rooms, 3 on each side, separated by a 10-foot-wide corridor. Each room has a door and a window. The door to each room should be on the wall on one side of the corridor, and the window should be on the outside wall of the building.
+    Architect: “3-Floor Office Building Design”
+    Foundation:
+    Rectangular foundation slab: 98.43 ft x 49.21 ft
+    Ground Floor Plan:
+    1. Perimeter Walls:
+    Wall A: (0,0) to (98.43,0)
+    Wall B: (98.43,0) to (98.43,49.21)
+    Wall C: (98.43,49.21) to (0,49.21)
+    Wall D: (0,49.21) to (0,0)
+    2. Functional Areas:
+    Boundary in format (x_min,y_min), (x_max,y_max):
+    Room 1: (0,0), (32.81,19.69)
+    Room 2: (32.81,0), (65.62,19.69)
+    Room 3: (65.62,0), (98.43,19.69)
+    Room 4: (0,29.53), (32.81,49.21)
+    Room 5: (32.81,29.53), (65.62,49.21)
+    Room 6: (65.62,29.53), (98.43,49.21)
+    Central corridor: (0,19.69), (98.43,29.53)
+    3. Internal Corridor Walls:
+    Wall E: (0,19.69) to (98.43,19.69)
+    Wall F: (0,29.53) to (98.43,29.53)
+    4. Room Dividing Walls:
+    Wall G: (32.81,0) to (32.81,19.69)
+    Wall H: (65.62,0) to (65.62,19.69)
+    Wall I: (32.81,29.53) to (32.81,49.21)
+    Wall J: (65.62,29.53) to (65.62,49.21)
+    5. Doors:
+    Insertion offset of each room door relative to the start of the corresponding wall:
+    Room 1 door on corridor wall E: 16.40
+    Room 2 door on corridor wall E: 49.21
+    Room 3 door on corridor wall E: 82.02
+    Room 4 door on corridor wall F: 16.40
+    Room 5 door on corridor wall F: 49.21
+    Room 6 door on corridor wall F: 82.02
+    6. Windows:
+    Insertion offset of each room window relative to the start of the corresponding wall:
+    Room 1 window on wall A: 49.21
+    Room 2 window on wall A: 82.02
+    Room 3 window on wall A: 114.83
+    Room 4 window on wall C: 16.40
+    Room 5 window on wall C: 49.21
+    Room 6 window on wall C: 82.02
+    First Floor Plan:
+    Identical to Ground Floor Plan
+    Second Floor Plan:
+    Identical to Ground Floor Plan
+    Roof Construction:
+    Roof covering entire building: (0,0) to (98.43,0) to (98.43,49.21) to (0,49.21) to (0,0).
+    Slab Design:
+    Create slabs for each floor supported by perimeter and internal walls. Slabs covering the entire floor area with the same dimensions as the foundation.
+    Summary:
+    Building dimensions: 98.43 ft x 49.21 ft x 3 floors.
+    Each floor has 6 rooms, 3 on each side of a central corridor.
+    The user now provides the following instruction; please generate the plan as an architect. Let’s think step by step.
+    User Request: {user_request}
+    """
+    global groq_client
+    try:
+        completion = await groq_client.chat.completions.create(
+        model="llama-3.1-70b-versatile",
+        messages=[
+            {
+                "role": "user",
+                "content": architect_prompt 
+            }
+        ],
+        temperature=0.8,
+        )
+        print(completion.choices[0].message.content)
+        return completion.choices[0].message.content
+    except Exception as e:
+        print('[tools_graph.py] step_by_step_planner: ', e)
+        return ''
 # FUNCTION HEADERS
 
 
