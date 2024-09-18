@@ -846,7 +846,7 @@ class IfcModel:
 
         # 5. Return the closed profile
         return ifcclosedprofile
-    def get_cshape_profile(self, section_data) :
+    def get_cshape_profile(self, section_data, section_name) :
         d = float(section_data['d'].iloc[0]) / 12
         t = float(section_data['T'].iloc[0]) / 12
         k = float(section_data['k'].iloc[0]) / 12
@@ -867,7 +867,7 @@ class IfcModel:
 
         # 5. Return the closed profile
         return ifcclosedprofile
-    def get_lshape_profile(self, section_data) :
+    def get_lshape_profile(self, section_data, section_name) :
         d = float(section_data['d'].iloc[0]) / 12
         bw = float(section_data['bw'].iloc[0]) / 12
         t = float(section_data['T'].iloc[0]) / 12
@@ -900,7 +900,7 @@ class IfcModel:
         return profile
         # Todo: use IFCCompositeProfileDef to make this rectange and the circle dividing them into 2 separate shapes (top and bottom). Also,
         # refactor out the file reading section of get_wshape_profile into its own function
-    def get_hssround_profile(self, section_data) :
+    def get_hssround_profile(self, section_data, section_name) :
         r = float(section_data['r'].iloc[0]) / 12
         t = float(section_data['t'].iloc[0]) / 12
         right_points = [
