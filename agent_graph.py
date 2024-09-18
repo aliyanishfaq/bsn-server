@@ -25,7 +25,7 @@ import re
 # Constants
 os.environ["LANGCHAIN_PROJECT"] = "BuildSync Agent v1.0"
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
-ANTRHOPIC_API_KEY = os.getenv('ANTRHOPIC_API_KEY')
+ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 LANGSMITH_API_KEY = os.getenv('LANGSMITH_API_KEY')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 MODEL_TYPE = 'CLAUDE'
@@ -45,7 +45,7 @@ class State(TypedDict):
 buildsync_graph_builder = StateGraph(State)
 # model to be used in production: claude-3-5-sonnet-20240620 cheaper option: claude-3-haiku-20240307
 llm = ChatAnthropic(model='claude-3-5-sonnet-20240620',
-                    streaming=True, verbose=True, api_key=ANTRHOPIC_API_KEY)
+                    streaming=True, verbose=True, api_key=ANTHROPIC_API_KEY)
 # llm = ChatOpenAI(model='gpt-4o', streaming=True, verbose=True, api_key=OPENAI_API_KEY)
 
 # examples
