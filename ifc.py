@@ -44,6 +44,7 @@ class IfcModel:
         self.project_globalid = self.create_guid()
         self.materials = dict()
         self.support_types = dict()
+        self.steel_types = dict()
         # 2. If there is no file name provided, create a new file. anad store all the necessary info
         if filename is None:
             self.ifcfile = self.initialize_ifc()
@@ -95,8 +96,12 @@ class IfcModel:
         self.add_support_type("Wood", 1, 0.5764705882, 0, self.get_rectangle)
         self.add_material("Brick", 1, 0, 0)
         self.add_support_type("Concrete", 0.662745098, 0.662745098, 0.662745098, self.get_rectangle)
-        self.add_support_type("Steel", 106 / 255, 127 / 255, 169 / 255, self.get_wshape_profile)
-        self.support_types.setdefault(self.get_rectangle)    
+        self.add_support_type("Steel", 106 / 255, 127 / 255, 169 / 255, self.get_steel_shape_profile)
+        self.support_types.setdefault(self.get_rectangle)
+        self.steel_types["L"] = self.get_lshape_profile
+        self.steel_types["C"] = self.get_cshape_profile
+        self.steel_types["HSS"] = self.get_hss_profile
+        self.steel_types["W"] = self.get_wshape_profile
 
 
 
@@ -781,8 +786,7 @@ class IfcModel:
         - filename: the name of the file to save to.
         """
         self.ifcfile.write(filename)
-
-    def get_wshape_profile(self, section_name):
+    def get_steel_shape_profile(self, section_name) :
         """
         Returns the shape of the specified section.
 
@@ -817,17 +821,27 @@ class IfcModel:
                                   == section_name]
 
         if not section_data.empty:  # check that section exists in database
-            d = float(section_data['d'].iloc[0]) / 12  # depth [feet]
-            bf = float(section_data['bf'].iloc[0]) / 12  # width [feet]
-            kdes = float(section_data['kdes'].iloc[0]
-                         ) / 12  # fillet radius [feet]
-            tf = float(section_data['tf'].iloc[0]) / \
-                12  # thickness of flange [feet]
-            tw = float(section_data['tw'].iloc[0]) / \
-                12  # thickness of web [feet]
+            if self.steel_types[section_name[0]] != None :
+                return self.steel_types[section_name[0]](section_data, section_name)
+            else :
+                raise NotImplementedError(f"AISC Shape Type {section_name[0]} not implemented for use")
         else:
             raise ValueError(
                 f"Section {section_name} not found in AISC database.")
+    def get_wshape_profile(self, section_data, section_name):
+        """
+        Returns the shape of the specified section.
+
+        Parameters:
+        - section_name: the name of the section to get the shape of.
+        """
+        d = float(section_data['d'].iloc[0]) / 12  # depth [feet]
+        bf = float(section_data['bf'].iloc[0]) / 12  # width [feet]
+        kdes = float(section_data['kdes'].iloc[0]) / 12  # fillet radius [feet]
+        tf = float(section_data['tf'].iloc[0]) / \
+                12  # thickness of flange [feet]
+        tw = float(section_data['tw'].iloc[0]) / \
+                12  # thickness of web [feet]
 
         # 3. Create the point list of the profile.
         point_list = [
@@ -867,12 +881,42 @@ class IfcModel:
 
         # 5. Return the closed profile
         return ifcclosedprofile
+    def get_hss_profile(self, section_data, section_name) :
+        if section_name.count('X') == 1 :
+            return self.get_hssround_profile(section_data, section_name)
+        else :
+            return self.get_hssrect_profile(section_data, section_name)
     def get_lshape_profile(self, section_data, section_name) :
-        d = float(section_data['d'].iloc[0]) / 12
-        bw = float(section_data['bw'].iloc[0]) / 12
-        t = float(section_data['T'].iloc[0]) / 12
-        # Look into this more
-    def get_hssrect_profile(self, section_data) :
+        parameters = section_name.removeprefix('L')
+        numbers = parameters.split(sep='X')
+        x = self.get_parameter(numbers[0])
+        y = self.get_parameter(numbers[1])
+        d = self.get_parameter(numbers[2])
+        point_list = [
+            (0.0, 0.0), (0.0, y), (d, y), (d, d),
+            (x, d), (x, 0.0)
+        ]
+        # 4. Convert the point list to a closed profile.
+        ifcpts = [self.ifcfile.createIfcCartesianPoint(
+            point) for point in point_list]
+        polyline = self.ifcfile.createIfcPolyline(ifcpts)
+        ifcclosedprofile = self.ifcfile.createIfcArbitraryClosedProfileDef(
+            "AREA", None, polyline)
+
+        # 5. Return the closed profile
+        return ifcclosedprofile
+    def get_parameter(self, data):
+        rtn = 0
+        if '/' in data :
+            if '-' in data :
+                rtn = float(data[0:data.find('-')])
+                data = data[data.find('-')]
+            [numerator, denominator] = data.split('/')
+            rtn += float(numerator) / float(denominator)
+        else :
+            rtn = float(data)
+        return rtn
+    def get_hssrect_profile(self, section_data, section_name) :
         b = float(section_data['b'].iloc[0]) / 12
         h = float(section_data['h'].iloc[0]) / 12
         t = float(section_data['t'].iloc[0]) / 12
