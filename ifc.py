@@ -311,7 +311,7 @@ class IfcModel:
         except KeyError:
             return None
 
-    def create_column(self, context, owner_history, column_placement, height, section_name, material):
+    def create_column(self, context, owner_history, column_placement, height, section_name, material, length, width):
         """
         Creates and returns a single column in the IFC model, based on placement and height.
 
@@ -323,7 +323,7 @@ class IfcModel:
         - section_name: the name of the section.
         """
         # 1. Create the column profile
-        ifcclosedprofile = self.support_types[material](section_name)
+        ifcclosedprofile = self.support_types[material](section_name, length, width)
         # print('IFC Closed Profile: ', dir(ifcclosedprofile))
         ifcclosedprofile.ProfileName = section_name
         # 2. Create the 3D extrusion.
@@ -786,7 +786,7 @@ class IfcModel:
         - filename: the name of the file to save to.
         """
         self.ifcfile.write(filename)
-    def get_steel_shape_profile(self, section_name) :
+    def get_steel_shape_profile(self, section_name, length, width) :
         """
         Returns the shape of the specified section.
 
@@ -942,8 +942,6 @@ class IfcModel:
         profile = self.ifcfile.createIfcCompositeProfileDef(
             "AREA", None, [profile_l, profile_r], None)
         return profile
-        # Todo: use IFCCompositeProfileDef to make this rectange and the circle dividing them into 2 separate shapes (top and bottom). Also,
-        # refactor out the file reading section of get_wshape_profile into its own function
     def get_hssround_profile(self, section_data, section_name) :
         r = float(section_data['r'].iloc[0]) / 12
         t = float(section_data['t'].iloc[0]) / 12
@@ -974,9 +972,9 @@ class IfcModel:
         profile = self.ifcfile.createIfcCompositeProfileDef(
             "AREA", None, [profile_l, profile_r], None)
         return profile
-    def get_rectangle(self, section_name) :
+    def get_rectangle(self, section_name, length, width) :
         points = [
-            [0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [1.0, 1.0], [1.0, 0.0, 0.0]
+            [0.0, 0.0, 0.0], [0.0, width, 0.0], [length, width], [length, width, 0.0]
         ]
         ifcpts = [
             self.ifcfile.createIfcCartesianPoint(point) for point in points
