@@ -711,6 +711,8 @@ def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 
     - slab_thickness (float): The thickness of the slab.
     """
     # global retrieval_tool
+    # Todo: Create sloped floors by figuring out where the slope points (for rectangles compare against and x-and-y axis), and flatten em into their 2D versions using Pythag,
+    # then create a local IFC2AxisPlacement3D that has customized unit axes to allow for the creation of the sloped.
     try:
         print(
             f"story_n: {story_n}, point_list: {point_list}, slab_thickness: {slab_thickness}")
