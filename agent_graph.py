@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from tools_graph import create_beam, create_column, create_wall, create_session, create_roof, create_building_story, create_floor, search_canvas, delete_objects, create_grid, refresh_canvas, create_isolated_footing, create_strip_footing, create_void_in_wall
+from tools_graph import create_beam, create_column, create_wall, create_session, create_roof, create_building_story, create_floor, search_canvas, delete_objects, create_grid, refresh_canvas, create_isolated_footing, create_strip_footing, create_void_in_wall, step_by_step_planner
 from typing import Annotated
 from typing_extensions import TypedDict
 from langgraph.graph import StateGraph, START, END
@@ -25,7 +25,7 @@ import re
 # Constants
 os.environ["LANGCHAIN_PROJECT"] = "BuildSync Agent v1.0"
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
-ANTRHOPIC_API_KEY = os.getenv('ANTRHOPIC_API_KEY')
+ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 LANGSMITH_API_KEY = os.getenv('LANGSMITH_API_KEY')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 MODEL_TYPE = 'CLAUDE'
@@ -45,7 +45,7 @@ class State(TypedDict):
 buildsync_graph_builder = StateGraph(State)
 # model to be used in production: claude-3-5-sonnet-20240620 cheaper option: claude-3-haiku-20240307
 llm = ChatAnthropic(model='claude-3-5-sonnet-20240620',
-                    streaming=True, verbose=True, api_key=ANTRHOPIC_API_KEY)
+                    streaming=True, verbose=True, api_key=ANTHROPIC_API_KEY)
 # llm = ChatOpenAI(model='gpt-4o', streaming=True, verbose=True, api_key=OPENAI_API_KEY)
 
 # examples
@@ -142,7 +142,7 @@ def create_agent(llm, tools):
 
 
 tools = [create_beam, create_column, create_wall, create_session, create_roof, create_building_story, create_floor,
-         delete_objects, create_grid, search_canvas, refresh_canvas, create_isolated_footing, create_strip_footing, create_void_in_wall]
+         delete_objects, create_grid, search_canvas, refresh_canvas, create_isolated_footing, create_strip_footing, create_void_in_wall, step_by_step_planner]
 llm_with_tools = create_agent(llm, tools)
 
 

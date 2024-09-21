@@ -5,7 +5,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Copy the unzipped IfcOpenShell folder to the container's site-packages
-COPY ifcopenshell /usr/local/lib/python3.10/site-packages/ifcopenshell
+#COPY ifcopenshell /usr/local/lib/python3.11/site-packages/ifcopenshell
 
 # Install necessary dependencies
 RUN apt-get update && apt-get install -y gcc

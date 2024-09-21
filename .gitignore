@@ -1,2 +1,6 @@
 bsenv
+.env
+.env.local
+.env.*.local
 __pycache__
+bsn-server-key.pem
