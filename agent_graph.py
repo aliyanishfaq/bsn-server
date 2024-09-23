@@ -284,7 +284,7 @@ async def model_streamer(sid, data: dict, unique_hash: str):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     tools_end = False
-    config = {"configurable": {"thread_id": "1", "sid": sid}}
+    config = {"configurable": {"thread_id": sid, "sid": sid}}
     async for event in stream_with_backoff(sid, data, config):
         global_store.task_to_sid[unique_hash] = sid
         kind = event['event']
