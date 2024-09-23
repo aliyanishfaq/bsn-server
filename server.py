@@ -89,7 +89,7 @@ async def upload_file(file: UploadFile = File(...), sid: str = Header(None)):
 @ sio.event
 async def userAction(sid, data):
     print('User Action recieved')
-    await sio.emit('userAction', data)
+    await sio.emit('userAction', data, room=sid)
     user_command = data['message']
     if True:  # user_command.startswith('/')
         unique_string = f"{user_command}-{time.time()}"
@@ -97,9 +97,9 @@ async def userAction(sid, data):
             hashlib.sha256(unique_string.encode()).hexdigest()
         print(f"Generated unique hash: {unique_hash}")
 
-        await sio.emit('aiActionStart', {'hash':  unique_hash})
+        await sio.emit('aiActionStart', {'hash':  unique_hash}, room=sid)
         await model_streamer(sid, data, unique_hash)
-        await sio.emit('aiActionEnd', {'hash': unique_hash})
+        await sio.emit('aiActionEnd', {'hash': unique_hash}, room=sid)
 
 
 @ sio.event
@@ -112,7 +112,7 @@ async def fileChange(sid, data):
     print('File change received:', data)
     file_name = data['file_name']
     print(f"Emitting fileChange event. SID: {sid}, File Name: {file_name}")
-    await sio.emit('fileChange', {'userId': sid, 'file_name': file_name})
+    await sio.emit('fileChange', {'userId': sid, 'file_name': file_name}, room=sid)
 
 
 @ app.get("/")
@@ -121,8 +121,8 @@ async def health_check():
     return {"message": "Server is running"}
 
 
-async def send_agent_response(message):
-    await sio.emit('agentResponse', {'message': message})
+async def send_agent_response(message, sid):
+    await sio.emit('agentResponse', {'message': message}, room=sid)
 
 
 def perform_action():

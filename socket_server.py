@@ -1,5 +1,8 @@
 import asyncio
 import socketio
+from global_store import global_store
+import os
+import shutil
 
 
 # Create a Socket.IO server allowing CORS for specific origins
@@ -15,6 +18,16 @@ async def connection(sid):
 @sio.event
 async def disconnect(sid):
     print("User Disconnected from server")
+    if sid in global_store.sid_to_ifc_model:
+        global_store.sid_to_ifc_model.pop(sid)
+
+    directory_path = os.path.join('public', sid)
+    if os.path.exists(directory_path) and os.path.isdir(directory_path):
+        shutil.rmtree(directory_path)
+        print(f"Deleted directory: {directory_path}")
+    else:
+        print(f"Directory not found: {directory_path}")
+
 
 
 @sio.event
@@ -22,12 +35,15 @@ async def modelLoaded(sid):
     print("Model loaded")
 
 
+# receives data on the user position and shares that information with other users
 @sio.event
 async def userPosition(sid, data):
-    # print('User position updated: ', data)
+    pass
+    #print('User position updated: ', data)
 
     # Broadcast updated positions to all users except the sender
-    await sio.emit('userPosition', data, skip_sid=sid)
+    # disabled for now
+    #await sio.emit('userPosition', data, skip_sid=sid)
 
 
 async def start():

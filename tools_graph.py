@@ -1,5 +1,6 @@
 from ifc import IfcModel
-from langchain_core.tools import tool
+from langchain_core.tools import tool, InjectedToolArg
+from typing_extensions import Annotated
 import ifcopenshell
 import ifcopenshell.api
 from ifcopenshell.api import run
@@ -14,6 +15,7 @@ import numpy as np
 from feature_extractor import IfcEntityFeatureExtractor
 from tool_helpers import format_output_search_canvas
 from groq import Groq
+from global_store import global_store
 
 load_dotenv()
 
@@ -28,8 +30,8 @@ groq_client = Groq(api_key=os.getenv('GROQ_API_KEY'))
 
 ## ---- TOOLS FOR MODEL TO CALL ----- #
 
-global IFC_MODEL
-IFC_MODEL = None
+#global IFC_MODEL
+#IFC_MODEL = None
 O = 0., 0., 0.
 X = 1., 0., 0.
 Y = 0., 1., 0.
@@ -40,8 +42,8 @@ Z = 0., 0., 1.
 async def create_on_start():
     """
     Creates a new IFC model for the user.
+    WARNING: This function no longer works as expected because of SIDs.
     """
-    global IFC_MODEL
     # 1. Tries to make the IFC model.
     try:
         print('Creating a new IFC model')
@@ -54,7 +56,6 @@ async def create_on_start():
             project_name="Modular IFC Project",
             filename=None
         )
-        IFC_MODEL = ifc_model
         ifc_model.save_ifc("public/canvas.ifc")
         return True
         # 2. Errors out if necessary.
@@ -64,15 +65,14 @@ async def create_on_start():
 
 
 @tool
-def create_session() -> bool:
+def create_session(sid: Annotated[str, InjectedToolArg]) -> bool:
     """
     Creates a new IFC model for the user.
     """
-    global IFC_MODEL
     # 1. Tries to make the session.
     try:
         # 2. Writes info in the IFC model.
-        print('Creating a new IFC model')
+        print('Creating a new IFC model for session', sid)
         ifc_model = IfcModel(
             creator="Aliyan",
             organization="BuildSync",
@@ -81,8 +81,8 @@ def create_session() -> bool:
             project_name="Modular IFC Project",
             filename=None
         )
-        IFC_MODEL = ifc_model
-        ifc_model.save_ifc("public/canvas.ifc")
+        global_store.sid_to_ifc_model[sid] = ifc_model
+        ifc_model.save_ifc(f"public/{sid}/canvas.ifc")
         return True
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -90,7 +90,7 @@ def create_session() -> bool:
 
 
 @tool
-def create_building_story(elevation: float = 0.0, name: str = "Level 1") -> bool:
+def create_building_story(sid: Annotated[str, InjectedToolArg], elevation: float = 0.0, name: str = "Level 1") -> bool:
     """
     Creates building stories with the specified amount, elevation, and height.
 
@@ -100,11 +100,14 @@ def create_building_story(elevation: float = 0.0, name: str = "Level 1") -> bool
     """
     global retrieval_tool
     global levels_dict
-
+    IFC_MODEL = global_store.sid_to_ifc_model[sid]
+    if IFC_MODEL is None:
+        print("No IFC model found for the given session.")
+        create_session(sid)
     try:
         # 1. Create the building story
         IFC_MODEL.create_building_stories(elevation, name)
-        IFC_MODEL.save_ifc("public/canvas.ifc")
+        IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
 
         # 2. Update the global dictionary
         levels_dict[name] = elevation
@@ -116,7 +119,7 @@ def create_building_story(elevation: float = 0.0, name: str = "Level 1") -> bool
 
 
 @tool
-def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_name: str = 'W16X40', story_n: int = 1) -> None:
+def create_beam(sid: Annotated[str, InjectedToolArg], start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_name: str = 'W16X40', story_n: int = 1) -> None:
     """
     Creates a beam at the specified start coordinate with the given dimensions.
 
@@ -127,7 +130,10 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
     - story_n (int): The story number that the user wants to place the beam on
     """
     try:
-
+        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        if IFC_MODEL is None:
+            print("No IFC model found for the given session.")
+            create_session(sid)
         # 1. Format coord and direction
         start_coord = tuple(map(float, start_coord.split(',')))
         end_coord = tuple(map(float, end_coord.split(',')))
@@ -195,7 +201,7 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
         IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
         ), owner_history, "Building story Container", None, [bm], story)
 
-        IFC_MODEL.save_ifc("public/canvas.ifc")
+        IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
         return True
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -203,7 +209,7 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
 
 
 @tool
-def create_column(story_n: int = 1, start_coord: str = "0,0,0", height: float = 30, section_name: str = "W12X53") -> bool:
+def create_column(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_coord: str = "0,0,0", height: float = 30, section_name: str = "W12X53") -> bool:
     """
     Creates a single column in the Revit document based on specified location, width, depth, and height.
 
@@ -215,6 +221,10 @@ def create_column(story_n: int = 1, start_coord: str = "0,0,0", height: float = 
     """
     # global retrieval_tool
     try:
+        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        if IFC_MODEL is None:
+            print("No IFC model found for the given session.")
+            create_session(sid)
         # 1. Get the appropriate story and its elevation.
         if len(IFC_MODEL.building_story_list) < story_n:
             IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
@@ -245,7 +255,7 @@ def create_column(story_n: int = 1, start_coord: str = "0,0,0", height: float = 
         ), owner_history, "Building story Container", None, [column], story)
 
         # 7. Save structure
-        IFC_MODEL.save_ifc("public/canvas.ifc")
+        IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
         return True
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -253,7 +263,7 @@ def create_column(story_n: int = 1, start_coord: str = "0,0,0", height: float = 
 
 
 @tool
-def create_grid(grids_x_distance_between: float = 10.0, grids_y_distance_between: float = 10.0, grids_x_direction_amount: int = 5, grids_y_direction_amount: int = 5, grid_extends: float = 50.0) -> bool:
+def create_grid(sid: Annotated[str, InjectedToolArg], grids_x_distance_between: float = 10.0, grids_y_distance_between: float = 10.0, grids_x_direction_amount: int = 5, grids_y_direction_amount: int = 5, grid_extends: float = 50.0) -> bool:
     """
     Creates a grid of lines in the given document based on the specified number of rows and columns,
     and the spacing between them.
@@ -266,8 +276,11 @@ def create_grid(grids_x_distance_between: float = 10.0, grids_y_distance_between
     - grid_extends (float): The distance on how much the grid extends.
     """
     try:
-        print("Creating grid...")
         # global retrieval_tool
+        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        if IFC_MODEL is None:
+            print("No IFC model found for the given session.")
+            create_session(sid)
 
         grids_x_dictionary = OrderedDict()
         grids_y_dictionary = OrderedDict()
@@ -396,7 +409,7 @@ def create_grid(grids_x_distance_between: float = 10.0, grids_y_distance_between
 
         print("Grid creation completed.")
 
-        IFC_MODEL.save_ifc("public/canvas.ifc")
+        IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
         return True
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -404,7 +417,7 @@ def create_grid(grids_x_distance_between: float = 10.0, grids_y_distance_between
 
 
 @tool
-def create_wall(story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = "0,0,0", height: float = 30.0, thickness: float = 1.0) -> bool:
+def create_wall(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = "0,0,0", height: float = 30.0, thickness: float = 1.0) -> bool:
     """
     Creates a single wall in the Revit document based on specified start and end coordinates, level, wall type, structural flag, height, and thickness.
 
@@ -417,6 +430,11 @@ def create_wall(story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = 
     """
     # global retrieval_tool
     try:
+        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        if IFC_MODEL is None:
+            print("No IFC model found for the given session.")
+            create_session(sid)
+
         if len(IFC_MODEL.building_story_list) < story_n:
             IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
 
@@ -457,7 +475,7 @@ def create_wall(story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = 
             IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
             ), owner_history, "Building story Container", None, [wall], story)
 
-            IFC_MODEL.save_ifc("public/canvas.ifc")
+            IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
         return True, wall_guid
     except Exception as e:
         print(f"Error creating wall: {e}")
@@ -465,7 +483,7 @@ def create_wall(story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = 
 
 
 @tool
-def create_isolated_footing(story_n: int = 1, location: tuple = (0.0, 0.0, 0.0), length: float = 10.0, width: float = 10.0, thickness: float = 1.0) -> bool:
+def create_isolated_footing(sid: Annotated[str, InjectedToolArg], story_n: int = 1, location: tuple = (0.0, 0.0, 0.0), length: float = 10.0, width: float = 10.0, thickness: float = 1.0) -> bool:
     """
     Creates a shallow isolated structural foundation footing on the specified story.
 
@@ -478,6 +496,11 @@ def create_isolated_footing(story_n: int = 1, location: tuple = (0.0, 0.0, 0.0),
     """
     global retrieval_tool
     try:
+        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        if IFC_MODEL is None:
+            print("No IFC model found for the given session.")
+            create_session(sid)
+
         # Get story information
         if len(IFC_MODEL.building_story_list) < story_n:
             IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
@@ -500,7 +523,7 @@ def create_isolated_footing(story_n: int = 1, location: tuple = (0.0, 0.0, 0.0),
         ), owner_history, "Building story Container", None, [footing], story)
 
         # Save structure
-        IFC_MODEL.save_ifc("public/canvas.ifc")
+        IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
         retrieval_tool = parse_ifc()
 
         return True
@@ -510,7 +533,7 @@ def create_isolated_footing(story_n: int = 1, location: tuple = (0.0, 0.0, 0.0),
 
 
 @tool
-def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0), end_point: tuple = (10.0, 0.0, 0.0), width: float = 1.0, depth: float = 1.0) -> bool:
+def create_strip_footing(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0), end_point: tuple = (10.0, 0.0, 0.0), width: float = 1.0, depth: float = 1.0) -> bool:
     """
     Creates a continuous footing (strip footing) on the specified story.
 
@@ -523,6 +546,11 @@ def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0),
     """
     global retrieval_tool
     try:
+        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        if IFC_MODEL is None:
+            print("No IFC model found for the given session.")
+            create_session(sid)
+
         # Get story information
         if len(IFC_MODEL.building_story_list) < story_n:
             IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
@@ -547,7 +575,7 @@ def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0),
         ), owner_history, "Building story Container", None, [footing], story)
 
         # Save structure
-        IFC_MODEL.save_ifc("public/canvas.ifc")
+        IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
         retrieval_tool = parse_ifc()
 
         return True
@@ -557,7 +585,7 @@ def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0),
 
 
 @tool
-def create_void_in_wall(host_wall_id=None, width=1.0, height=1.0, depth=2.0, void_location=(1.0, 0.0, 1.0)) -> bool:
+def create_void_in_wall(sid: Annotated[str, InjectedToolArg], host_wall_id=None, width=1.0, height=1.0, depth=2.0, void_location=(1.0, 0.0, 1.0)) -> bool:
     """
     Creates a void in the specified host element and commits it to the IFC file.
 
@@ -569,6 +597,11 @@ def create_void_in_wall(host_wall_id=None, width=1.0, height=1.0, depth=2.0, voi
     - void_location (tuple): The local coordinates (x, y, z) of the void relative to the wall. Each value in this tuple should be a float. Example: (0., 0., 0.)
     """
     try:
+        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        if IFC_MODEL is None:
+            print("No IFC model found for the given session.")
+            create_session(sid)
+
         print(
             f"host_wall_id: {host_wall_id}, width: {width}, height: {height}, depth: {depth}, void_location: {void_location}")
         # Retrieve wall with element ID
@@ -598,7 +631,7 @@ def create_void_in_wall(host_wall_id=None, width=1.0, height=1.0, depth=2.0, voi
             wall=host_wall, width=width, height=height, depth=depth, void_location=void_location)
 
         # # Save structure
-        IFC_MODEL.save_ifc("public/canvas.ifc")
+        IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
         retrieval_tool = parse_ifc()
 
         print("Void created and committed to the IFC file successfully.")
@@ -609,7 +642,7 @@ def create_void_in_wall(host_wall_id=None, width=1.0, height=1.0, depth=2.0, voi
 
 
 @tool
-def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 0.), (100., 100., 0.), (100., 0., 0.)], slab_thickness: float = 1.0) -> bool:
+def create_floor(sid: Annotated[str, InjectedToolArg], story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 0.), (100., 100., 0.), (100., 0., 0.)], slab_thickness: float = 1.0) -> bool:
     """
     Creates a floor in the specified story with given dimensions and thickness.
 
@@ -620,6 +653,11 @@ def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 
     """
     # global retrieval_tool
     try:
+        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        if IFC_MODEL is None:
+            print("No IFC model found for the given session.")
+            create_session(sid)
+
         print(
             f"story_n: {story_n}, point_list: {point_list}, slab_thickness: {slab_thickness}")
 
@@ -725,7 +763,7 @@ def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 
 
         # 9. Save the structure
         try:
-            IFC_MODEL.save_ifc("public/canvas.ifc")
+            IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
         except Exception as e:
             print(f"Error saving structure: {e}")
             raise
@@ -737,7 +775,7 @@ def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 
 
 
 @tool
-def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (100, 100, 0), (100, 0, 0)], roof_thickness: float = 1.0) -> bool:
+def create_roof(sid: Annotated[str, InjectedToolArg], story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (100, 100, 0), (100, 0, 0)], roof_thickness: float = 1.0) -> bool:
     """
     Creates a roof on the specified story with given dimensions and thickness.
 
@@ -748,6 +786,11 @@ def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (1
     - roof_thickness (float): The thickness of the roof.
     """
     try:
+        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        if IFC_MODEL is None:
+            print("No IFC model found for the given session.")
+            create_session(sid)
+
         print(
             f"story_n: {story_n}, point_list: {point_list}, roof_thickness: {roof_thickness}")
         try:
@@ -917,7 +960,7 @@ def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (1
 
         try:
             # 10. Save structure
-            IFC_MODEL.save_ifc("public/canvas.ifc")
+            IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
         except Exception as e:
             print(f"Error saving IFC file: {e}")
             raise
@@ -929,7 +972,7 @@ def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (1
 
 
 @tool
-def create_isolated_footing(story_n: int = 1, location: tuple = (0.0, 0.0, 0.0), length: float = 10.0, width: float = 10.0, thickness: float = 1.0) -> bool:
+def create_isolated_footing(sid: Annotated[str, InjectedToolArg], story_n: int = 1, location: tuple = (0.0, 0.0, 0.0), length: float = 10.0, width: float = 10.0, thickness: float = 1.0) -> bool:
     """
     Creates a shallow isolated structural foundation footing on the specified story.
 
@@ -942,6 +985,11 @@ def create_isolated_footing(story_n: int = 1, location: tuple = (0.0, 0.0, 0.0),
     """
     global retrieval_tool
     try:
+        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        if IFC_MODEL is None:
+            print("No IFC model found for the given session.")
+            create_session(sid)
+
         # Get story information
         if len(IFC_MODEL.building_story_list) < story_n:
             IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
@@ -964,7 +1012,7 @@ def create_isolated_footing(story_n: int = 1, location: tuple = (0.0, 0.0, 0.0),
         ), owner_history, "Building story Container", None, [footing], story)
 
         # Save structure
-        IFC_MODEL.save_ifc("public/canvas.ifc")
+        IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
         retrieval_tool = parse_ifc()
 
         return True
@@ -974,7 +1022,7 @@ def create_isolated_footing(story_n: int = 1, location: tuple = (0.0, 0.0, 0.0),
 
 
 @tool
-def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0), end_point: tuple = (10.0, 0.0, 0.0), width: float = 1.0, depth: float = 1.0) -> bool:
+def create_strip_footing(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0), end_point: tuple = (10.0, 0.0, 0.0), width: float = 1.0, depth: float = 1.0) -> bool:
     """
     Creates a continuous footing (strip footing) on the specified story.
 
@@ -987,6 +1035,11 @@ def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0),
     """
     global retrieval_tool
     try:
+        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        if IFC_MODEL is None:
+            print("No IFC model found for the given session.")
+            create_session(sid)
+
         # Get story information
         if len(IFC_MODEL.building_story_list) < story_n:
             IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
@@ -1011,7 +1064,7 @@ def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0),
         ), owner_history, "Building story Container", None, [footing], story)
 
         # Save structure
-        IFC_MODEL.save_ifc("public/canvas.ifc")
+        IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
         retrieval_tool = parse_ifc()
 
         return True
@@ -1021,7 +1074,7 @@ def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0),
 
 
 @tool
-def search_canvas(search_query: str, search_file: str = 'canvas.ifc') -> str:
+def search_canvas(sid: Annotated[str, InjectedToolArg], search_query: str, search_file: str = 'canvas.ifc') -> str:
     """
     Provided a user query, this function will search the IFC file and return the relevant objects in a string format.
     Parameters:
@@ -1030,7 +1083,12 @@ def search_canvas(search_query: str, search_file: str = 'canvas.ifc') -> str:
     """
     global openai_client
     try:
-        loaded_file = ifcopenshell.open('public/' + search_file)
+        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        if IFC_MODEL is None:
+            print("No IFC model found for the given session.")
+            create_session(sid)
+
+        loaded_file = ifcopenshell.open(f"public/{sid}/" + search_file)
         res = openai_client.chat.completions.create(
             model='gpt-4o',
             response_format={"type": "json_object"},
@@ -1092,7 +1150,7 @@ def search_canvas(search_query: str, search_file: str = 'canvas.ifc') -> str:
 
 
 @tool
-def delete_objects(delete_query: str) -> bool:
+def delete_objects(sid: Annotated[str, InjectedToolArg], delete_query: str) -> bool:
     """
     Provided a user query, this function will delete the relevant objects from the ifc file.
     Parameters:
@@ -1100,6 +1158,11 @@ def delete_objects(delete_query: str) -> bool:
     """
     global openai_client
     try:
+        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        if IFC_MODEL is None:
+            print("No IFC model found for the given session.")
+            create_session(sid)
+
         relevant_objects = search_canvas(delete_query)
         print('relevant_objects', relevant_objects)
         res = openai_client.chat.completions.create(
@@ -1130,7 +1193,7 @@ def delete_objects(delete_query: str) -> bool:
             for object_id in objects_ids_list:
                 ifc_object = IFC_MODEL.ifcfile.by_guid(object_id)
                 IFC_MODEL.ifcfile.remove(ifc_object)
-                IFC_MODEL.save_ifc("public/canvas.ifc")
+                IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
             return True
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -1139,14 +1202,14 @@ def delete_objects(delete_query: str) -> bool:
 
 
 @tool
-def refresh_canvas() -> bool:
+def refresh_canvas(sid: Annotated[str, InjectedToolArg]) -> bool:
     """
     Refreshes the canvas by sending a socket call of file change.
     The function is invoked when user types in 'refresh', 'refresh canvas' or 'refresh the canvas'
     """
     try:
         sio.emit('fileChange', {
-                 'userId': 'BuildSync', 'message': 'A new change has been made to the file', 'file_name': 'public/canvas.ifc'})
+                 'userId': 'BuildSync', 'message': 'A new change has been made to the file', 'file_name': f'public/{sid}/canvas.ifc'})
         return True
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -1154,7 +1217,7 @@ def refresh_canvas() -> bool:
 
 
 @tool
-async def step_by_step_planner(user_request: str) -> str:
+async def step_by_step_planner(sid: Annotated[str, InjectedToolArg], user_request: str) -> str:
     """
     The function is provided with the user_request. If the user's request is unclear, lacks architectural clarity, or is not specific,
     the function is invoked to make the request more clearer and specific with step by step guidelines of the process to perform the user's
@@ -1242,6 +1305,11 @@ async def step_by_step_planner(user_request: str) -> str:
     """
     global groq_client
     try:
+        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        if IFC_MODEL is None:
+            print("No IFC model found for the given session.")
+            create_session(sid)
+
         completion = await groq_client.chat.completions.create(
             model="llama-3.1-70b-versatile",
             messages=[

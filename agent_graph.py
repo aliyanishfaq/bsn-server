@@ -20,6 +20,8 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 import base64
 from langgraph.checkpoint.memory import MemorySaver
 import re
+from global_store import global_store
+from agent_helpers import inject_sid
 
 
 # Constants
@@ -35,6 +37,9 @@ O = 0., 0., 0.
 X = 1., 0., 0.
 Y = 0., 1., 0.
 Z = 0., 0., 1.
+
+# Global dictionary to map task hash to user session ID (sid)
+TASK_TO_SID_MAP = {}
 
 
 # State definition
@@ -148,7 +153,10 @@ llm_with_tools = create_agent(llm, tools)
 
 async def chat_node(state: State, config: RunnableConfig):
     messages = state['messages']
+    configuration = config.get('configurable', {})
+    sid = configuration.get('sid', None)
     response = await llm_with_tools.ainvoke(messages, config)
+    response = inject_sid(response, sid)
     return {'messages': response}
 
 tool_node = ToolNode(tools=tools)
@@ -193,12 +201,11 @@ buildsync_graph_builder.add_conditional_edges(
 
 # memory = AsyncSqliteSaver.from_conn_string(":memory:", )
 memory = MemorySaver()
-config = {"configurable": {"thread_id": "1"}}
 graph = buildsync_graph_builder.compile(checkpointer=memory)
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=15))
-async def stream_with_backoff(data: dict, config: dict):
+async def stream_with_backoff(sid: str, data: dict, config: dict):
     user_command = data.get('message')
     image_data = data.get('imageData')
     message_type = data.get('messageType')
@@ -277,7 +284,9 @@ async def model_streamer(sid, data: dict, unique_hash: str):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     tools_end = False
-    async for event in stream_with_backoff(data, config):
+    config = {"configurable": {"thread_id": "1", "sid": sid}}
+    async for event in stream_with_backoff(sid, data, config):
+        global_store.task_to_sid[unique_hash] = sid
         kind = event['event']
         # print(kind)
         if kind == 'on_chat_model_stream':
@@ -286,36 +295,34 @@ async def model_streamer(sid, data: dict, unique_hash: str):
                 message = event.get('data').get('chunk').content[0].get('text')
                 # print("on_chat_stream", message)
                 if message:
-                    await sio.emit('aiAction', {'word': message, 'hash': unique_hash, 'tools_end': tools_end})
+                    await sio.emit('aiAction', {'word': message, 'hash': unique_hash, 'tools_end': tools_end}, room=sid)
             except (KeyError, IndexError, TypeError, AttributeError) as e:
                 print(e)
         elif kind == "on_chat_model_end":
             content = {'hash': unique_hash}
             asyncio.run_coroutine_threadsafe(
-                sio.emit('on_prompt_end', content), loop)
+                sio.emit('on_prompt_end', content, room=sid), loop)
 
         elif kind == "on_tool_start":
             print(
                 f"Starting tool: {event.get('name')} with inputs: {event.get('data').get('input')}"
             )
             message = f"Starting tool: {event.get('name')} with inputs: {event.get('data').get('input')}"
-            await sio.emit('toolStart', {'word': message, 'hash': unique_hash})
+            await sio.emit('toolStart', {'word': message, 'hash': unique_hash}, room=sid)
 
         elif kind == "on_tool_end":
             tools_end = True
             print(f"Done tool: {event.get('name')}")
             print(f"Tool output was: {event.get('data').get('output')}")
+            global_store.task_to_sid.pop(unique_hash, None)
             message = f"{event.get('name')} execution successfully completed"
             if bool(event.get('data').get('output')) is True:
                 message = f"{event.get('name')} execution successfully completed"
-                await sio.emit('toolEnd', {'word': message, 'hash': unique_hash})
+                await sio.emit('toolEnd', {'word': message, 'hash': unique_hash}, room=sid)
             else:
                 message = f"{event.get('name')} execution failed"
             print("emitting fileChange")
-            print("SID: ", sid)
-            fileContent = open('public/canvas.ifc', 'rb').read()
-            filePath = 'public/canvas.ifc'
-            await sio.emit('fileChange', {'userId': 'BuildSync', 'message': 'A new change has been made to the file', 'file_name': 'public/canvas.ifc', 'file_content': fileContent})
+            await sio.emit('fileChange', {'userId': 'BuildSync', 'message': 'A new change has been made to the file', 'file_name': f"public/{sid}/canvas.ifc"}, room=sid)
             print("fileChange emitted")
             # print('file contents: ', open('public/canvas.ifc', 'rb').read())
         elif kind == "on_chain_start":
@@ -328,7 +335,7 @@ async def model_streamer(sid, data: dict, unique_hash: str):
                     # print("message object", message_object)
                     message = message_object[0]['text']
                     # print("on_chain_start message", message)
-                    await sio.emit('chainStart', {'word': message, 'hash': unique_hash, 'tools_end': tools_end})
+                    await sio.emit('chainStart', {'word': message, 'hash': unique_hash, 'tools_end': tools_end}, room=sid)
             except (KeyError, IndexError, TypeError, AttributeError) as e:
                 print(e)
         elif kind == "on_chain_end":
@@ -344,7 +351,7 @@ async def model_streamer(sid, data: dict, unique_hash: str):
                     print("message object", message_content)
                     message = message_content[0]['text']
                     print("on_chain_end message", message)
-                    await sio.emit('chainStart', {'word': message, 'hash': unique_hash, 'tools_end': tools_end})
+                    await sio.emit('chainStart', {'word': message, 'hash': unique_hash, 'tools_end': tools_end}, room=sid)
             except (KeyError, IndexError, TypeError, AttributeError) as e:
                 print(e)
         elif kind == "on_chain_stream":
