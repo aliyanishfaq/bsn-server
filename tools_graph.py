@@ -313,7 +313,13 @@ def create_column(story_n: int = 1, start_coord: str = "0,0,0", height: float = 
         if len(IFC_MODEL.building_story_list) < story_n:
             IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
         story = IFC_MODEL.building_story_list[story_n - 1]
-        elevation = (story.Elevation) + bottom_offset - top_offset
+        elevation = (story.Elevation) + bottom_offset
+        if len(IFC_MODEL.building_story_list) < story_n + 1 and top_offset != 0.0:
+            IFC_MODEL.create_building_stories(elevation + height + top_offset, f"Level {story_n + 1}")
+        top_story = IFC_MODEL.building_story_list[story_n]
+        top_elevation = (top_story.Elevation)
+        if elevation + height + top_offset > top_elevation :
+            height -= (elevation + height + top_offset) - top_elevation
 
         # 2. Populate the coordinates.
         start_coord = list(map(float, start_coord.split(',')))
@@ -513,11 +519,15 @@ def create_wall(story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = 
     try:
         if len(IFC_MODEL.building_story_list) < story_n:
             IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
-
         story = IFC_MODEL.building_story_list[story_n - 1]
-        elevation = (story.Elevation) + bottom_offset - top_offset
+        elevation = (story.Elevation) + bottom_offset
         story_placement = story.ObjectPlacement
-
+        if len(IFC_MODEL.building_story_list) < story_n + 1 and top_offset != 0.0:
+            IFC_MODEL.create_building_stories(elevation + height + top_offset, f"Level {story_n + 1}")
+        top_story = IFC_MODEL.building_story_list[story_n]
+        top_elevation = (top_story.Elevation)
+        if elevation + height + top_offset > top_elevation :
+            height -= (elevation + height + top_offset) - top_elevation
         # 1. Populate the coordinates for start and end
         start_coord, end_coord = list(map(float, start_coord.split(','))), list(tuple(
             map(float, end_coord.split(','))))
