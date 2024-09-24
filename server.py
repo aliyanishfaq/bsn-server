@@ -49,6 +49,9 @@ app.mount("/public", StaticFiles(directory="public"), name="public")
 # Create a Socket.IO server allowing CORS for specific origins
 combined_asgi_app = socketio.ASGIApp(sio, app)
 
+# current context
+curHighlightedObjects = None
+
 
 @ sio.event
 async def DOMContentLoaded(sid):
@@ -98,13 +101,15 @@ async def userAction(sid, data):
         print(f"Generated unique hash: {unique_hash}")
 
         await sio.emit('aiActionStart', {'hash':  unique_hash}, room=sid)
-        await model_streamer(sid, data, unique_hash)
+        await model_streamer(sid, data, unique_hash, curHighlightedObjects)
         await sio.emit('aiActionEnd', {'hash': unique_hash}, room=sid)
 
 
 @ sio.event
 async def highlightedFragments(sid, data):
-    print(f'highlightedFragments recieved {sid}, {data}')
+    global curHighlightedObjects
+    print(f'highlightedFragments recieved {data}')
+    curHighlightedObjects = data
 
 
 @ sio.event
