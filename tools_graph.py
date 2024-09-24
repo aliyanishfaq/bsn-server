@@ -114,7 +114,7 @@ def create_building_story(elevation: float = 0.0, name: str = "Level 1") -> bool
 
 
 @tool
-def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_name: str = 'W16X40', story_n: int = 1, material: str = None, length: float = 1.0, width: float = 1.0) -> None:
+def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_name: str = 'W16X40', story_n: int = 1, material: str = None, length: float = 1.0, width: float = 1.0, offset: float = 0.0) -> None:
     """
     Creates a beam at the specified start coordinate with the given dimensions.
 
@@ -128,7 +128,9 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
 
         # 1. Format coord and direction
         start_coord = tuple(map(float, start_coord.split(',')))
+        start_coord[2] += offset
         end_coord = tuple(map(float, end_coord.split(',')))
+        end_coord[2] += offset
 
         direction = IFC_MODEL.calc_direction(start_coord, end_coord)
         length = IFC_MODEL.calc_length(start_coord, end_coord)
@@ -295,7 +297,7 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
 
 
 @tool
-def create_column(story_n: int = 1, start_coord: str = "0,0,0", height: float = 30, section_name: str = "W12X53", material: str = None, length: float = 1.0, width: float = 1.0) -> bool:
+def create_column(story_n: int = 1, start_coord: str = "0,0,0", height: float = 30, section_name: str = "W12X53", material: str = None, length: float = 1.0, width: float = 1.0, top_offset: float = 0.0, bottom_offset: float = 0.0) -> bool:
     """
     Creates a single column in the Revit document based on specified location, width, depth, and height.
 
@@ -311,7 +313,7 @@ def create_column(story_n: int = 1, start_coord: str = "0,0,0", height: float = 
         if len(IFC_MODEL.building_story_list) < story_n:
             IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
         story = IFC_MODEL.building_story_list[story_n - 1]
-        elevation = (story.Elevation)
+        elevation = (story.Elevation) + bottom_offset - top_offset
 
         # 2. Populate the coordinates.
         start_coord = list(map(float, start_coord.split(',')))
@@ -496,7 +498,7 @@ def create_grid(grids_x_distance_between: float = 10.0, grids_y_distance_between
 
 
 @tool
-def create_wall(story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = "0,0,0", height: float = 30.0, thickness: float = 1.0, material: str = None) -> bool:
+def create_wall(story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = "0,0,0", height: float = 30.0, thickness: float = 1.0, material: str = None, bottom_offset: float = 0.0, top_offset: float = 0.0) -> bool:
     """
     Creates a single wall in the Revit document based on specified start and end coordinates, level, wall type, structural flag, height, and thickness.
 
@@ -513,7 +515,7 @@ def create_wall(story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = 
             IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
 
         story = IFC_MODEL.building_story_list[story_n - 1]
-        elevation = (story.Elevation)
+        elevation = (story.Elevation) + bottom_offset - top_offset
         story_placement = story.ObjectPlacement
 
         # 1. Populate the coordinates for start and end
@@ -701,7 +703,7 @@ def create_void_in_wall(host_wall_id=None, width=1.0, height=1.0, depth=2.0, voi
 
 
 @tool
-def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 0.), (100., 100., 0.), (100., 0., 0.)], slab_thickness: float = 1.0, material: str = None) -> bool:
+def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 0.), (100., 100., 0.), (100., 0., 0.)], slab_thickness: float = 1.0, material: str = None, offset: float = 0.0) -> bool:
     """
     Creates a floor in the specified story with given dimensions and thickness.
 
@@ -738,7 +740,7 @@ def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 
                 IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
 
             story = IFC_MODEL.building_story_list[story_n - 1]
-            elevation = story.Elevation
+            elevation = story.Elevation + offset
             story_placement = story.ObjectPlacement
         except Exception as e:
             print(f"Error getting story information: {e}")
@@ -832,7 +834,7 @@ def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 
 
 
 @tool
-def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (100, 100, 0), (100, 0, 0)], roof_thickness: float = 1.0) -> bool:
+def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (100, 100, 0), (100, 0, 0)], roof_thickness: float = 1.0, offset: float = 0.0) -> bool:
     """
     Creates a roof on the specified story with given dimensions and thickness.
 
@@ -877,7 +879,7 @@ def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (1
             raise
 
         try:
-            elevation = (float(story.Elevation) + float(point_list[0][2]))
+            elevation = (float(story.Elevation) + float(point_list[0][2])) + offset
         except Exception as e:
             print(f"Error getting elevation: {e}")
             raise
