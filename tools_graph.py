@@ -2,8 +2,8 @@ from ifc_parser import parse_ifc
 from ifc import IfcModel
 from langchain_core.tools import tool
 import ifcopenshell
-import ifcopenshell.api
-import ifcopenshell
+import ifcopenshell.api.context
+import ifcopenshell.api.geometry
 from ifcopenshell.api import run
 import asyncio
 from socket_server import sio
@@ -766,7 +766,26 @@ def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 
         print(f"An error occurred: {e}")
         raise
 
-
+def are_points_3d(point_list) :
+    for point in point_list :
+        if point[2] != 0.0 :
+            return True
+    return False
+def make_sloped_geometry(point_list, thickness) :
+    original_length = len(point_list)
+    faces = []
+    faces[0] = list(range(len(point_list)))
+    faces[1] = list(range(original_length, original_length * 2))
+    original_max_index = original_length - 1
+    for i in range(original_length, original_length * 2) :
+        point = point_list[i - original_length]
+        point_list[i] = [point[0], point[1], point[2] - thickness]
+    for j in range(0, original_max_index) :
+        faces[j + 2] = [j, j + 1, j + 1 + original_length, j + original_length]
+    faces[len(faces)] = [original_max_index, 0, original_length, original_length + original_max_index]
+    context_source = ifcopenshell.api.context.add_context(IFC_MODEL, context_type="Model")
+    context = ifcopenshell.api.context.add_context(IFC_MODEL, context_type="Model", context_identifier="Body", target_view="MODEL_VIEW", parent=context_source)
+    return ifcopenshell.api.geometry.add_mesh_representation(IFC_MODEL, context=context, vertices=point_list, faces=faces)
 @tool
 def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (100, 100, 0), (100, 0, 0)], roof_thickness: float = 1.0, material: str = None, offset: float = 0.0) -> bool:
     """
