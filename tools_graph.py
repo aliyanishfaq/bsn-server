@@ -122,7 +122,11 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
     - start_coord (str): The (x, y, z) coordinates of the beam's start point in the format "x,y,z".
     - end_coord (str): The (x, y, z) coordinates of the beam's end point in the format "x,y,z".
     - section_name (str): The beam profile name (e.g. W16X40).
-    - story_n (int): The story number that the user wants to place the beam on
+    - story_n (int): The story number that the user wants to place the beam on.
+    - material (string): What the beam is made out of.
+    - length (float): the length of the beam's cross-section.
+    - width (float): the width of the beam's cross-section.
+    - offset (float): how far the beam is off.
     """
     try:
 
@@ -202,100 +206,6 @@ def create_beam(start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_na
         raise
 
 
-"""
-    @tool
-    def create_beam(length: float = 10.0, start_coord: str = "0,0,0", direction: tuple = "1,0,0", section_name: str = 'W16X40', story_n: int = 1) -> bool:
-
-        Creates a beam at the specified start coordinate with the given dimensions.
-
-        Parameters:
-        - length (float): The length of the beam.
-        - start_coord (str): The (x, y, z) coordinates of the beam's start point in the format "x,y,z".
-        - direction (str): The direction the beam faces in the format "x,y,z". The default is X direction
-        - section_name (str): The beam profile name (e.g. W16X40).
-
-        global retrieval_tool
-
-        try:
-            # format coord and direction
-            start_coord = tuple(list(map(float, start_coord.split(','))))
-            direction = tuple(list(map(float, direction.split(','))))
-
-            print(start_coord, direction)
-
-            # IFC model setup
-            context = IFC_MODEL.ifcfile.by_type(
-                "IfcGeometricRepresentationContext")[0]
-            owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
-            if len(IFC_MODEL.building_story_list) < story_n:
-                IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
-            story = IFC_MODEL.building_story_list[story_n - 1]
-
-            # 0. Initiate IfcBeam
-            # Note: eventually, we'll want to pass in various beam names.
-            bm = IFC_MODEL.ifcfile.createIfcBeam(
-                IFC_MODEL.create_guid(), owner_history, "Beam")
-
-            # 1-3. Define beam placement
-            Z = (0.0, 0.0, 1.0)
-
-            # 1. Define beam starting point, hosting axis, & direction.
-            bm_axis2placement = IFC_MODEL.ifcfile.createIfcAxis2Placement3D(
-                IFC_MODEL.ifcfile.createIfcCartesianPoint(start_coord))
-            bm_axis2placement.Axis = IFC_MODEL.ifcfile.createIfcDirection(
-                direction)
-
-            # Calculate cross product & convert np.float64 to Python float
-            crossprod = tuple(np.cross(direction, Z))
-            crossprod_list = list(crossprod)  # convert tuple to list
-            # modify the elements from np.float64 to Python float
-            for i in range(len(crossprod_list)):
-                crossprod_list[i] = float(crossprod_list[i])
-            # convert the list back to a tuple
-            crossprod = tuple(crossprod_list)
-
-            bm_axis2placement.RefDirection = IFC_MODEL.ifcfile.createIfcDirection(
-                crossprod)
-
-            # 2. Create LocalPlacement for beam.
-            bm_placement = IFC_MODEL.ifcfile.createIfcLocalPlacement(
-                story, bm_axis2placement)  # can pass building stories as host
-            bm.ObjectPlacement = bm_placement
-
-            # 3. Create 3D axis placement for extrusion.
-            bm_extrudePlacement = IFC_MODEL.ifcfile.createIfcAxis2Placement3D(
-                IFC_MODEL.ifcfile.createIfcCartesianPoint((0., 0., 0.)))
-
-            # 4. Create extruded area section for beam.
-            bm_extrusion = IFC_MODEL.ifcfile.createIfcExtrudedAreaSolid()
-            bm_extrusion.SweptArea = IFC_MODEL.get_wshape_profile(section_name)
-            bm_extrusion.Position = bm_extrudePlacement
-            bm_extrusion.ExtrudedDirection = IFC_MODEL.ifcfile.createIfcDirection(
-                (0.0, 0.0, 1.0))
-            bm_extrusion.Depth = length
-
-            # 5. Create shape representation for beam.
-            bm_rep = IFC_MODEL.ifcfile.createIfcShapeRepresentation(
-                context, "Body", "SweptSolid", [bm_extrusion])
-
-            # 6. Create a product shape for beam.
-            bm_prod = IFC_MODEL.ifcfile.createIfcProductDefinitionShape()
-            bm_prod.Representations = [bm_rep]
-
-            bm.Representation = bm_prod
-
-            # 7. Add beam to IFC file & save
-            IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-            ), owner_history, "Building story Container", None, [bm], story)
-
-            IFC_MODEL.save_ifc("public/canvas.ifc")
-            return True
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            raise
-"""
-
-
 @tool
 def create_column(story_n: int = 1, start_coord: str = "0,0,0", height: float = 30, section_name: str = "W12X53", material: str = None, length: float = 1.0, width: float = 1.0, top_offset: float = 0.0, bottom_offset: float = 0.0) -> bool:
     """
@@ -306,6 +216,11 @@ def create_column(story_n: int = 1, start_coord: str = "0,0,0", height: float = 
     - start_coord (str): The (x, y, z) coordinates of the column's location in the format "x,y,z".
     - height (float): The height of the column in feet.
     - section_name (string): The name of the column type.
+    - material (string): what the column is made out of, and determines the column shape.
+    - length (float): the length of the column's cross-section.
+    - width (float): the width of the column's cross-section.
+    - top_offset (float): the minimum distance to the next story.
+    - bottom_offset (float): the minimum distance to this story.
     """
     # global retrieval_tool
     try:
@@ -506,7 +421,7 @@ def create_grid(grids_x_distance_between: float = 10.0, grids_y_distance_between
 @tool
 def create_wall(story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = "0,0,0", height: float = 30.0, thickness: float = 1.0, material: str = None, bottom_offset: float = 0.0, top_offset: float = 0.0) -> bool:
     """
-    Creates a single wall in the Revit document based on specified start and end coordinates, level, wall type, structural flag, height, and thickness.
+    Creates a single wall in the Revit document based on specified start and end coordinates, level, wall type, structural flag, height, thickness, material, and offsets.
 
     Parameters:
     - story_n (int): The story number that the user wants to place the column on
@@ -514,14 +429,20 @@ def create_wall(story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = 
     - end_coord (str): The (x, y, z) coordinates of the wall's end point in the format "x,y,z".
     - height (float): The height of the wall. The default should be each story's respective elevations.
     - thickness (float): The thickness of the wall in ft.
+    - material (str): what the wall is made out of.
+    - bottom_offset (float): the distance of this wall's bottom from the elevation of the story it's contained in.
+    - top_offset (float): the distance of this wall's top from the elevation of the next story
     """
     # global retrieval_tool
     try:
+        # 0. set up the elevation of the wall appropriately based on the bottom_offset
         if len(IFC_MODEL.building_story_list) < story_n:
             IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
         story = IFC_MODEL.building_story_list[story_n - 1]
         elevation = (story.Elevation) + bottom_offset
         story_placement = story.ObjectPlacement
+        # 0.5. Cut down the height of the wall if the overall 
+        # vertical footprint of the wall reaches into the next story.
         if len(IFC_MODEL.building_story_list) < story_n + 1 and top_offset != 0.0:
             IFC_MODEL.create_building_stories(elevation + height + top_offset, f"Level {story_n + 1}")
         top_story = IFC_MODEL.building_story_list[story_n]
@@ -721,6 +642,8 @@ def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 
     - story_n (int): The story number where the slab will be created.
     - point_list (list): The list of points that make up the floor boundary. Each value should be a float.
     - slab_thickness (float): The thickness of the slab.
+    - material (string): what the floor is made out of.
+    - offset (float): how far the floor is off from the floor.
     """
     # global retrieval_tool
     # Todo: Create sloped floors by figuring out where the slope points (for rectangles compare against and x-and-y axis), and flatten em into their 2D versions using Pythag,
@@ -750,6 +673,7 @@ def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 
                 IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
 
             story = IFC_MODEL.building_story_list[story_n - 1]
+            # Add the offset to the elevation.
             elevation = story.Elevation + offset
             story_placement = story.ObjectPlacement
         except Exception as e:
