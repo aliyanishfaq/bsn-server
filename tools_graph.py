@@ -768,7 +768,7 @@ def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 
 
 
 @tool
-def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (100, 100, 0), (100, 0, 0)], roof_thickness: float = 1.0, offset: float = 0.0) -> bool:
+def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (100, 100, 0), (100, 0, 0)], roof_thickness: float = 1.0, material: str = None, offset: float = 0.0) -> bool:
     """
     Creates a roof on the specified story with given dimensions and thickness.
 
@@ -777,6 +777,8 @@ def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (1
     - point_list (list): The list of points that make up the roof boundary. The z-coordinate of the points should by default be the elevation of the story the roof is being placed at. Unless otherwise asked by the user.
     Each point should be a tuple of three floats. Note: If roof is being called within a structure, unless otherwise specified, the z-coordinate should be the height of the elements it is being placed on e.g. if its a set of walls, the z-coordinate should be the height of the walls so if the walls are 10 feet tall, the roof should be at 10 feet. 
     - roof_thickness (float): The thickness of the roof.
+    - material (str): what the roof is made out of.
+    - offset (float): how far vertically the roof is from the story.
     """
     try:
         print(
@@ -940,12 +942,12 @@ def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (1
 
         try:
             # 9. Create product entity and assign to spatial container
-            IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
+            roof = IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
             ), owner_history, "Building story Container", None, [roof], story)
         except Exception as e:
             print(f"Error assigning container: {e}")
             raise
-
+        IFC_MODEL.add_style_to_product(material, roof)
         try:
             # 10. Save structure
             IFC_MODEL.save_ifc("public/canvas.ifc")
