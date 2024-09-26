@@ -700,45 +700,49 @@ def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 
             print(f"Error creating slab boundary: {e}")
             raise
 
-        # 4. Create points for slab boundary
-        try:
-            points = [IFC_MODEL.ifcfile.createIfcCartesianPoint(
-                (x, y, z)) for x, y, z in point_list]
-            points.append(points[0])  # close loop
+        if are_points_3d(point_list) :
+            shape_representation = make_sloped_geometry(point_list, slab_thickness)
+            IFC_MODEL.add_style_to_product(material, shape_representation)
+        else :
+            # 4. Create points for slab boundary
+            try:
+                points = [IFC_MODEL.ifcfile.createIfcCartesianPoint(
+                    (x, y, z)) for x, y, z in point_list]
+                points.append(points[0])  # close loop
 
-            # 5. Create boundary polyline
-            slab_line = IFC_MODEL.ifcfile.createIfcPolyline(points)
-            slab_profile = IFC_MODEL.ifcfile.createIfcArbitraryClosedProfileDef(
-                "AREA", None, slab_line)
-            ifc_direction = IFC_MODEL.ifcfile.createIfcDirection(Z)
-        except Exception as e:
-            print(f"Error creating points for slab boundary: {e}")
-            raise
+                # 5. Create boundary polyline
+                slab_line = IFC_MODEL.ifcfile.createIfcPolyline(points)
+                slab_profile = IFC_MODEL.ifcfile.createIfcArbitraryClosedProfileDef(
+                    "AREA", None, slab_line)
+                ifc_direction = IFC_MODEL.ifcfile.createIfcDirection(Z)
+            except Exception as e:
+                print(f"Error creating points for slab boundary: {e}")
+                raise
 
-        # 6. Create local axis placement
-        try:
-            point = IFC_MODEL.ifcfile.createIfcCartesianPoint((0.0, 0.0, 0.0))
-            dir1 = IFC_MODEL.ifcfile.createIfcDirection((0., 0., 1.0))
-            dir2 = IFC_MODEL.ifcfile.createIfcDirection((1.0, 0., 0.0))
-            axis2placement = IFC_MODEL.ifcfile.createIfcAxis2Placement3D(
-                point, dir1, dir2)
-        except Exception as e:
-            print(f"Error creating local axis placement: {e}")
-            raise
+            # 6. Create local axis placement
+            try:
+                point = IFC_MODEL.ifcfile.createIfcCartesianPoint((0.0, 0.0, 0.0))
+                dir1 = IFC_MODEL.ifcfile.createIfcDirection((0., 0., 1.0))
+                dir2 = IFC_MODEL.ifcfile.createIfcDirection((1.0, 0., 0.0))
+                axis2placement = IFC_MODEL.ifcfile.createIfcAxis2Placement3D(
+                    point, dir1, dir2)
+            except Exception as e:
+                print(f"Error creating local axis placement: {e}")
+                raise
 
-        # 7. Create extruded slab geometry
-        try:
-            extrusion = slab_thickness
-            slab_solid = IFC_MODEL.ifcfile.createIfcExtrudedAreaSolid(
-                slab_profile,  axis2placement, ifc_direction, extrusion)
-            IFC_MODEL.add_style_to_product(material, slab_solid)
-            shape_representation = IFC_MODEL.ifcfile.createIfcShapeRepresentation(ContextOfItems=context,
+            # 7. Create extruded slab geometry
+            try:
+                extrusion = slab_thickness
+                slab_solid = IFC_MODEL.ifcfile.createIfcExtrudedAreaSolid(
+                    slab_profile,  axis2placement, ifc_direction, extrusion)
+                IFC_MODEL.add_style_to_product(material, slab_solid)
+                shape_representation = IFC_MODEL.ifcfile.createIfcShapeRepresentation(ContextOfItems=context,
                                                                                   RepresentationIdentifier='Body',
                                                                                   RepresentationType='SweptSolid',
                                                                                   Items=[slab_solid])
-        except Exception as e:
-            print(f"Error creating extruded slab geometry: {e}")
-            raise
+            except Exception as e:
+                print(f"Error creating extruded slab geometry: {e}")
+                raise
 
         print(
             f"Shape Representation: {shape_representation}, IFC Slab Type: {ifc_slabtype}, IFC Slab: {slab}, story: {story}, Elevation: {elevation}, Points: {points}")
