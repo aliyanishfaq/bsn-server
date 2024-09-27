@@ -777,23 +777,24 @@ def are_points_3d(point_list) :
     return False
 def make_sloped_geometry(point_list, thickness) :
     original_length = len(point_list)
-    faces = []
-    edges = []
-    faces.append(list(range(len(point_list))))
-    faces.append(list(range(original_length, original_length * 2)))
+    faces = [[]]
+    edges = [[]]
+    points = [point_list]
+    faces[0].append(tuple(list(range(len(point_list)))))
+    faces[0].append(tuple(list(range(original_length, original_length * 2))))
     original_max_index = original_length - 1
     for i in range(original_length, original_length * 2) :
         point = point_list[i - original_length]
-        point_list.append([point[0], point[1], point[2] - thickness])
+        points[0].append((point[0], point[1], point[2] - thickness))
     for j in range(0, original_max_index) :
-        faces.append([j, j + 1, j + 1 + original_length, j + original_length])
-        edges.append([j, j + 1])
-        edges.append([j, j + original_length])
-        edges.append(j + original_length, j + original_length + 1)
-    faces.append([original_max_index, 0, original_length, original_length + original_max_index])
-    edges.append([original_max_index, 0])
-    edges.append([original_max_index, original_max_index + original_length])
-    edges.append([original_max_index + original_length, original_length])
+        faces[0].append((j, j + 1, j + 1 + original_length, j + original_length))
+        edges[0].append((j, j + 1))
+        edges[0].append((j, j + original_length))
+        edges[0].append((j + original_length, j + original_length + 1))
+    faces[0].append((original_max_index, 0, original_length, original_length + original_max_index))
+    edges[0].append((original_max_index, 0))
+    edges[0].append((original_max_index, original_max_index + original_length))
+    edges[0].append((original_max_index + original_length, original_length))
     context_source = ifcopenshell.api.context.add_context(IFC_MODEL.ifcfile, context_type="Model")
     context = ifcopenshell.api.context.add_context(IFC_MODEL.ifcfile, context_type="Model", context_identifier="Body", target_view="MODEL_VIEW", parent=context_source)
     return ifcopenshell.api.geometry.add_mesh_representation(IFC_MODEL.ifcfile, context=context, vertices=point_list, faces=faces, edges=edges)
