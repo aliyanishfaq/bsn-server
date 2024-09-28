@@ -100,7 +100,7 @@ def create_building_story(sid: Annotated[str, InjectedToolArg], elevation: float
     """
     global retrieval_tool
     global levels_dict
-    IFC_MODEL = global_store.sid_to_ifc_model[sid]
+    IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
     if IFC_MODEL is None:
         print("No IFC model found for the given session.")
         create_session(sid)
@@ -130,7 +130,7 @@ def create_beam(sid: Annotated[str, InjectedToolArg], start_coord: str = "0,0,0"
     - story_n (int): The story number that the user wants to place the beam on
     """
     try:
-        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
@@ -221,7 +221,7 @@ def create_column(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_
     """
     # global retrieval_tool
     try:
-        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
@@ -277,7 +277,7 @@ def create_grid(sid: Annotated[str, InjectedToolArg], grids_x_distance_between: 
     """
     try:
         # global retrieval_tool
-        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
@@ -430,7 +430,8 @@ def create_wall(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_co
     """
     # global retrieval_tool
     try:
-        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
+        print('IFC_MODEL IN CREATE WALL: ', IFC_MODEL)
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
@@ -496,7 +497,7 @@ def create_isolated_footing(sid: Annotated[str, InjectedToolArg], story_n: int =
     """
     global retrieval_tool
     try:
-        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
@@ -546,7 +547,7 @@ def create_strip_footing(sid: Annotated[str, InjectedToolArg], story_n: int = 1,
     """
     global retrieval_tool
     try:
-        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
@@ -597,7 +598,7 @@ def create_void_in_wall(sid: Annotated[str, InjectedToolArg], host_wall_id=None,
     - void_location (tuple): The local coordinates (x, y, z) of the void relative to the wall. Each value in this tuple should be a float. Example: (0., 0., 0.)
     """
     try:
-        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
@@ -653,7 +654,7 @@ def create_floor(sid: Annotated[str, InjectedToolArg], story_n: int = 1, point_l
     """
     # global retrieval_tool
     try:
-        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
@@ -786,7 +787,7 @@ def create_roof(sid: Annotated[str, InjectedToolArg], story_n: int = 1, point_li
     - roof_thickness (float): The thickness of the roof.
     """
     try:
-        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
@@ -985,7 +986,7 @@ def create_isolated_footing(sid: Annotated[str, InjectedToolArg], story_n: int =
     """
     global retrieval_tool
     try:
-        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
@@ -1035,7 +1036,7 @@ def create_strip_footing(sid: Annotated[str, InjectedToolArg], story_n: int = 1,
     """
     global retrieval_tool
     try:
-        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
@@ -1083,7 +1084,7 @@ def search_canvas(sid: Annotated[str, InjectedToolArg], search_query: str, searc
     """
     global openai_client
     try:
-        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
@@ -1158,7 +1159,7 @@ def delete_objects(sid: Annotated[str, InjectedToolArg], delete_query: str) -> b
     """
     global openai_client
     try:
-        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
@@ -1305,7 +1306,7 @@ async def step_by_step_planner(sid: Annotated[str, InjectedToolArg], user_reques
     """
     global groq_client
     try:
-        IFC_MODEL = global_store.sid_to_ifc_model[sid]
+        IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
