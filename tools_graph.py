@@ -777,27 +777,47 @@ def are_points_3d(point_list) :
     return False
 def make_sloped_geometry(point_list, thickness) :
     original_length = len(point_list)
-    faces = [[]]
-    edges = [[]]
-    points = [point_list]
-    faces[0].append(tuple(list(range(len(point_list)))))
-    faces[0].append(tuple(list(range(original_length, original_length * 2))))
+    faces = []
+    edges = []
+    points = []
+    faces.append(tuple(list(range(len(point_list)))))
+    faces.append(tuple(list(range(original_length, original_length * 2))))
+    for spot in point_list :
+        points.append((spot[0], spot[1], spot[2]))
     original_max_index = original_length - 1
     for i in range(original_length, original_length * 2) :
-        point = point_list[i - original_length]
-        points[0].append((point[0], point[1], point[2] - thickness))
+        point = points[i - original_length]
+        points.append((point[0], point[1], point[2] - thickness))
     for j in range(0, original_max_index) :
-        faces[0].append((j, j + 1, j + 1 + original_length, j + original_length))
-        edges[0].append((j, j + 1))
-        edges[0].append((j, j + original_length))
-        edges[0].append((j + original_length, j + original_length + 1))
-    faces[0].append((original_max_index, 0, original_length, original_length + original_max_index))
-    edges[0].append((original_max_index, 0))
-    edges[0].append((original_max_index, original_max_index + original_length))
-    edges[0].append((original_max_index + original_length, original_length))
+        faces.append((j, j + 1, j + 1 + original_length, j + original_length))
+        edges.append((j, j + 1))
+        edges.append((j, j + original_length))
+        edges.append((j + original_length, j + original_length + 1))
+    faces.append((original_max_index, 0, original_length, original_length + original_max_index))
+    edges.append((original_max_index, 0))
+    edges.append((original_max_index, original_max_index + original_length))
+    edges.append((original_max_index + original_length, original_length))
+    cart_points = [
+        IFC_MODEL.ifcfile.createIfcCartesianPoint(spot) for spot in points
+    ]
+    loops = []
+    for face in faces: 
+        actual = [
+            cart_points[face_point] for face_point in face
+        ]
+        loops.append(IFC_MODEL.ifcfile.createIfcPolyLoop(actual))
+    face_bounds = [
+        IFC_MODEL.ifcfile.createIfcFaceOuterBound(loop, True) for loop in loops
+    ]
+    actual_faces = [
+        IFC_MODEL.ifcfile.createIfcFace(bound) for bound in face_bounds
+    ]
+    shell = IFC_MODEL.ifcfile.createIfcClosedShell(actual_faces)
+    brep = IFC_MODEL.ifcfile.createIfcFacetedBrep(shell)
     context_source = ifcopenshell.api.context.add_context(IFC_MODEL.ifcfile, context_type="Model")
     context = ifcopenshell.api.context.add_context(IFC_MODEL.ifcfile, context_type="Model", context_identifier="Body", target_view="MODEL_VIEW", parent=context_source)
-    return ifcopenshell.api.geometry.add_mesh_representation(IFC_MODEL.ifcfile, context=context, vertices=point_list, faces=faces, edges=edges)
+    return IFC_MODEL.ifcfile.createIfcShapeRepresentation(context, 'Body', 'Brep', brep)
+    #return ifcopenshell.api.geometry.add_mesh_representation(IFC_MODEL.ifcfile, context=context, vertices=points, faces=faces, edges=edges)
 @tool
 def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (100, 100, 0), (100, 0, 0)], roof_thickness: float = 1.0, material: str = None, offset: float = 0.0) -> bool:
     """
