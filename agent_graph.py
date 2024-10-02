@@ -203,6 +203,25 @@ buildsync_graph_builder.add_conditional_edges(
 memory = MemorySaver()
 graph = buildsync_graph_builder.compile(checkpointer=memory)
 
+# Extract characteristics of the elements
+
+
+def get_element_characteristics(id):
+    ifc_file = None  # CHANGE THIS TO THE WORKING IFC FILE
+    element = ifc_file.by_id(315)
+    if element:
+        return {
+            "IFC Type": element.is_a(),
+            "GlobalId": element.GlobalId,
+            "Name": getattr(element, "Name", None),
+            "ObjectType": getattr(element, "ObjectType", None),
+            "Description": getattr(element, "Description", None),
+            "Tag": getattr(element, "Tag", None),
+            "PredefinedType": getattr(element, "PredefinedType", None)
+        }
+    else:
+        return "Element not found."
+
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=15))
 async def stream_with_backoff(sid: str, data: dict, config: dict):
@@ -277,7 +296,7 @@ async def stream_with_backoff(sid: str, data: dict, config: dict):
         yield event
 
 
-async def model_streamer(sid, data: dict, unique_hash: str):
+async def model_streamer(sid, data: dict, unique_hash: str, curHighlightedObjects: dict):
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
