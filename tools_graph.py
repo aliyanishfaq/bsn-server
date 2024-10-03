@@ -1315,3 +1315,15 @@ async def element_to_text(element: object) -> str:
     str: A string describing the element in a language model-friendly way.
     """
     return "Description of element"
+
+@tool
+def copy_element(type: str = None, id: str = None, new_location: tuple = (1.0, 1.0, 0.0)) :
+    elements = IFC_MODEL.ifcfile.by_type(type)
+    for element in elements :
+        if element.ObjectPlacement :
+            return
+        # Plan for this function: figure out how to find the right object to copy and then copy it using
+        # icopenshelll.util.element.copy_deep()
+@tool
+def create_door(atory_n: int = 1, point_list: list = [(0.0, 0.0, 0.0), (0.0, 0.0, 10.0), (10.0, 0.0, 10.0), (10.0, 0.0, 0.0)], type: str = "DOOR", operation: str = "DOUBLE") :
+    # CReate a door at specified points, and if necessary create a void in the appropriate wall or door
