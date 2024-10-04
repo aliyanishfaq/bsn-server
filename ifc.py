@@ -45,6 +45,7 @@ class IfcModel:
         self.materials = dict()
         self.support_types = dict()
         self.steel_types = dict()
+        self.object_types = dict()
         # 2. If there is no file name provided, create a new file. anad store all the necessary info
         if filename is None:
             self.ifcfile = self.initialize_ifc()
@@ -102,7 +103,16 @@ class IfcModel:
         self.steel_types["C"] = self.get_cshape_profile
         self.steel_types["HSS"] = self.get_hss_profile
         self.steel_types["W"] = self.get_wshape_profile
-
+        self.object_types["wall"] = "IfcWall"
+        self.object_types['window'] = "IfcWindow"
+        self.object_types['column'] = "IfcColumn"
+        self.object_types['roof'] = "IfcRoof"
+        self.object_types['building'] = 'IfcBuilding'
+        self.object_types['door'] = 'IfcDoor'
+        self.object_types['beam'] = 'IfcBeam'
+        self.object_types['slab'] = 'IfcSlab'
+        self.object_types['floor'] = 'IfcSlab'
+        self.object_types['story'] = 'IfcBuildingStorey'
 
 
     def add_material(self, name, red, green, blue) :

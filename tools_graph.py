@@ -4,6 +4,7 @@ from langchain_core.tools import tool
 import ifcopenshell
 import ifcopenshell.api.context
 import ifcopenshell.api.geometry
+import ifcopenshell.api.root
 import ifcopenshell.util.element
 from ifcopenshell.api import run
 import asyncio
@@ -413,7 +414,7 @@ def create_grid(grids_x_distance_between: float = 10.0, grids_y_distance_between
         print("Grid creation completed.")
 
         IFC_MODEL.save_ifc("public/canvas.ifc")
-        return True
+        return True, myGrid.GlobalID
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
@@ -444,10 +445,11 @@ def create_wall(story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = 
         story_placement = story.ObjectPlacement
         # 0.5. Cut down the height of the wall if the overall 
         # vertical footprint of the wall reaches into the next story.
+        top_elevation = 100000000
         if len(IFC_MODEL.building_story_list) < story_n + 1 and top_offset != 0.0:
             IFC_MODEL.create_building_stories(elevation + height + top_offset, f"Level {story_n + 1}")
-        top_story = IFC_MODEL.building_story_list[story_n]
-        top_elevation = (top_story.Elevation)
+            top_story = IFC_MODEL.building_story_list[story_n]
+            top_elevation = (top_story.Elevation)
         if elevation + height + top_offset > top_elevation :
             height -= (elevation + height + top_offset) - top_elevation
         # 1. Populate the coordinates for start and end
@@ -520,8 +522,7 @@ def create_isolated_footing(story_n: int = 1, location: tuple = (0.0, 0.0, 0.0),
         owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
 
         # Call the function in ifc.py to create the footing
-        footing = IFC_MODEL.create_isolated_footing(
-            location, length, width, thickness)
+        footing = IFC_MODEL.create_isolated_footing(location, length, width, thickness)
         IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
         ), owner_history, "Building story Container", None, [footing], story)
 
@@ -529,7 +530,7 @@ def create_isolated_footing(story_n: int = 1, location: tuple = (0.0, 0.0, 0.0),
         IFC_MODEL.save_ifc("public/canvas.ifc")
         retrieval_tool = parse_ifc()
 
-        return True
+        return True, footing.GlobalID
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
@@ -576,7 +577,7 @@ def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0),
         IFC_MODEL.save_ifc("public/canvas.ifc")
         retrieval_tool = parse_ifc()
 
-        return True
+        return True, footing.GlobalID
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
@@ -688,6 +689,7 @@ def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 
             slab = ifcopenshell.api.run(
                 "root.create_entity", IFC_MODEL.ifcfile, ifc_class="IfcSlab")
             slab.Name = "Slab"
+            slab.GlobalId = IFC_MODEL.create_guid()
             slab_placement = IFC_MODEL.create_ifclocalplacement(
                 (0., 0., float(elevation)), Z, X, relative_to=story_placement)
             slab.ObjectPlacement = slab_placement
@@ -765,7 +767,7 @@ def create_floor(story_n: int = 1, point_list: list = [(0., 0., 0.), (0., 100., 
             print(f"Error saving structure: {e}")
             raise
 
-        return True
+        return True, slab.GlobalID
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
@@ -887,6 +889,7 @@ def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (1
             # 3. Create slab boundary
             roof = ifcopenshell.api.run(
                 "root.create_entity", IFC_MODEL.ifcfile, ifc_class="IfcRoof")
+            roof.GlobalID = IFC_MODEL.create_guid()
         except Exception as e:
             print(f"Error creating roof entity: {e}")
             raise
@@ -1010,7 +1013,7 @@ def create_roof(story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (1
             print(f"Error saving IFC file: {e}")
             raise
 
-        return True
+        return True, roof.GlobalID
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
@@ -1055,7 +1058,7 @@ def create_isolated_footing(story_n: int = 1, location: tuple = (0.0, 0.0, 0.0),
         IFC_MODEL.save_ifc("public/canvas.ifc")
         retrieval_tool = parse_ifc()
 
-        return True
+        return True, footing.GlobalID
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
@@ -1102,7 +1105,7 @@ def create_strip_footing(story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0),
         IFC_MODEL.save_ifc("public/canvas.ifc")
         retrieval_tool = parse_ifc()
 
-        return True
+        return True, footing.GlobalID
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
@@ -1180,49 +1183,17 @@ def search_canvas(search_query: str, search_file: str = 'canvas.ifc') -> str:
 
 
 @tool
-def delete_objects(delete_query: str) -> bool:
+def delete_objects(type: str = None, id: str = None) -> bool:
     """
     Provided a user query, this function will delete the relevant objects from the ifc file.
     Parameters:
     - delete_query (str): The user query that the user inputs. e.g. delete the right most wall, delete all the columns etc.
     """
-    global client
-    try:
-        relevant_objects = search_canvas(delete_query)
-        print('relevant_objects', relevant_objects)
-        res = client.chat.completions.create(
-            model='gpt-4o',
-            response_format={"type": "json_object"},
-            messages=[
-                {
-                    "role": "system",
-                    "content": """You are an AI BIM Modeler part of a larger workflow. Your specific task is to identify which objects need to be deleted based on the user query.
-                    You will be provided with a string that contains information about the relevant objects related to the user query. The information about each object will include
-                    its global id. Your job is to return a JSON object with key as 'objects' and the value as list of all the global ids of the objects that need to be deleted.
-                    """
-                },
-                {
-                    "role": "user",
-                    "content": f"Relevant Objects: {relevant_objects}, Delete Query: {delete_query}"
-                }
-            ]
-        )
-        try:
-            json_object = json.loads(res.choices[0].message.content) or {}
-        except json.JSONDecodeError:
-            print("Invalid JSON response.")
-            raise
-        if json_object:
-            objects_ids_list = json_object.get('objects', [])
-            print(f"objects_ids_list: {objects_ids_list}")
-            for object_id in objects_ids_list:
-                ifc_object = IFC_MODEL.ifcfile.by_guid(object_id)
-                IFC_MODEL.ifcfile.remove(ifc_object)
-                IFC_MODEL.save_ifc("public/canvas.ifc")
+    elements = IFC_MODEL.ifcfile.by_type(IFC_MODEL.object_types[type])
+    for element in elements :
+        if element.GlobalID == id :
+            ifcopenshell.api.root.remove_product(IFC_MODEL.ifcfile, element)
             return True
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        raise
     return False
 
 
@@ -1316,14 +1287,21 @@ async def element_to_text(element: object) -> str:
     """
     return "Description of element"
 
-@tool
 def copy_element(type: str = None, id: str = None, new_location: tuple = (1.0, 1.0, 0.0)) :
-    elements = IFC_MODEL.ifcfile.by_type(type)
+    elements = IFC_MODEL.ifcfile.by_type(IFC_MODEL.object_types[type])
     for element in elements :
-        if element.ObjectPlacement :
-            return
+        if element.GlobalID == id :
+            location = IFC_MODEL.ifcfile.createIfcCartesianPoint(new_location)
+            placement = IFC_MODEL.ifcfile.createIfcAxis2Placement3D(location, None, None)
+            local_placement = IFC_MODEL.ifcfile.createIfcLocalPlacement(None, placement)
+            id = IFC_MODEL.create_guid()
+            copied = ifcopenshell.util.element.copy_deep(element)
+            copied.GlobalID = id
+            copied.Object_Placement = local_placement
+            return True, id
         # Plan for this function: figure out how to find the right object to copy and then copy it using
         # icopenshelll.util.element.copy_deep()
-@tool
+    return False
 def create_door(atory_n: int = 1, point_list: list = [(0.0, 0.0, 0.0), (0.0, 0.0, 10.0), (10.0, 0.0, 10.0), (10.0, 0.0, 0.0)], type: str = "DOOR", operation: str = "DOUBLE") :
     # CReate a door at specified points, and if necessary create a void in the appropriate wall or door
+    return
