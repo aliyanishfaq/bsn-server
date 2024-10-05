@@ -131,9 +131,9 @@ def create_agent(llm, tools):
             ("system",
              """
             You are an AI BIM modeller. You are working with IFC files and you are provided with creation and editing tasks for IFC files.
-            You will respond to user queries and invoke relevant tools to complete the user's request. 
-            Do not ask follow up questions. If the user's answer is not clear, use default parameters. 
-            Be as concise as possible. Keep your answer to 50 words.
+            You will respond to user queries and invoke relevant tools to complete the user's request.
+            Do not ask follow up questions. If the user's answer is not clear, use default parameters.
+            Be as concise as possible. Keep your answer to 20 words.
             In case the user is referring to something specific, you should use search_canvas to retrieve specific information from file and then use that information to complete the user's request.
             You have access to the following tools: {tool_names}
             """
@@ -323,10 +323,8 @@ async def model_streamer(sid, data: dict, unique_hash: str, curHighlightedObject
                 sio.emit('on_prompt_end', content, room=sid), loop)
 
         elif kind == "on_tool_start":
-            print(
-                f"Starting tool: {event.get('name')} with inputs: {event.get('data').get('input')}"
-            )
-            message = f"Starting tool: {event.get('name')} with inputs: {event.get('data').get('input')}"
+            message = f"""Starting tool: {event.get('name')} with inputs:
+{event.get('data').get('input')}"""
             await sio.emit('toolStart', {'word': message, 'hash': unique_hash}, room=sid)
 
         elif kind == "on_tool_end":
@@ -336,7 +334,8 @@ async def model_streamer(sid, data: dict, unique_hash: str, curHighlightedObject
             global_store.task_to_sid.pop(unique_hash, None)
             message = f"{event.get('name')} execution successfully completed"
             if bool(event.get('data').get('output')) is True:
-                message = f"{event.get('name')} execution successfully completed"
+                message = f"""{
+                    event.get('name')} execution successfully completed"""
                 await sio.emit('toolEnd', {'word': message, 'hash': unique_hash}, room=sid)
             else:
                 message = f"{event.get('name')} execution failed"
