@@ -4,8 +4,9 @@ from langchain_core.tools import tool
 import ifcopenshell
 import ifcopenshell.api.context
 import ifcopenshell.api.geometry
-import ifcopenshell.api.root
+import ifcopenshell.api.root.copy_class
 import ifcopenshell.util.element
+import ifcopenshell.util.selector
 from ifcopenshell.api import run
 import asyncio
 from socket_server import sio
@@ -1183,17 +1184,19 @@ def search_canvas(search_query: str, search_file: str = 'canvas.ifc') -> str:
 
 
 @tool
-def delete_objects(type: str = None, id: str = None) -> bool:
+def delete_objects(type: str, id: str) -> bool:
     """
     Provided a user query, this function will delete the relevant objects from the ifc file.
     Parameters:
     - delete_query (str): The user query that the user inputs. e.g. delete the right most wall, delete all the columns etc.
     """
-    elements = IFC_MODEL.ifcfile.by_type(IFC_MODEL.object_types[type])
-    for element in elements :
-        if element.GlobalID == id :
-            ifcopenshell.api.root.remove_product(IFC_MODEL.ifcfile, element)
-            return True
+    if (type == "IfcWall") :
+        type = "IfcWallStandardCase"
+    element = IFC_MODEL.ifcfile.by_guid(id)
+    if element != None :
+        IFC_MODEL.ifcfile.remove(element)
+        IFC_MODEL.save_ifc("public/canvas.ifc")
+        return True
     return False
 
 
@@ -1286,22 +1289,30 @@ async def element_to_text(element: object) -> str:
     str: A string describing the element in a language model-friendly way.
     """
     return "Description of element"
-
+@tool
 def copy_element(type: str = None, id: str = None, new_location: tuple = (1.0, 1.0, 0.0)) :
-    elements = IFC_MODEL.ifcfile.by_type(IFC_MODEL.object_types[type])
-    for element in elements :
-        if element.GlobalID == id :
-            location = IFC_MODEL.ifcfile.createIfcCartesianPoint(new_location)
+    """
+    Copy a given element and move it to a new location.
+    """
+    try :
+        element = IFC_MODEL.ifcfile.by_guid(id)
+        if element != None :
+            location = IFC_MODEL.ifcfile.createIfcCartesianPoint((new_location[0] * 1.0, new_location[1] * 1.0, new_location[2] * 1.0))
             placement = IFC_MODEL.ifcfile.createIfcAxis2Placement3D(location, None, None)
             local_placement = IFC_MODEL.ifcfile.createIfcLocalPlacement(None, placement)
             id = IFC_MODEL.create_guid()
-            copied = ifcopenshell.util.element.copy_deep(element)
-            copied.GlobalID = id
-            copied.Object_Placement = local_placement
+            copied = ifcopenshell.util.element.copy(IFC_MODEL.ifcfile, element)
+            copied.GlobalId = id
+            copied.ObjectPlacement = local_placement
+            IFC_MODEL.ifcfile.add(copied)
+            IFC_MODEL.save_ifc("public/canvas.ifc")
             return True, id
         # Plan for this function: figure out how to find the right object to copy and then copy it using
         # icopenshelll.util.element.copy_deep()
-    return False
-def create_door(atory_n: int = 1, point_list: list = [(0.0, 0.0, 0.0), (0.0, 0.0, 10.0), (10.0, 0.0, 10.0), (10.0, 0.0, 0.0)], type: str = "DOOR", operation: str = "DOUBLE") :
+        return False
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        raise
+def create_door(story_n: int = 1, point_list: list = [(0.0, 0.0, 0.0), (0.0, 0.0, 10.0), (10.0, 0.0, 10.0), (10.0, 0.0, 0.0)], type: str = "DOOR", operation: str = "DOUBLE") :
     # CReate a door at specified points, and if necessary create a void in the appropriate wall or door
     return
