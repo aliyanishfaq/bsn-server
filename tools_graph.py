@@ -30,8 +30,8 @@ groq_client = Groq(api_key=os.getenv('GROQ_API_KEY'))
 
 ## ---- TOOLS FOR MODEL TO CALL ----- #
 
-#global IFC_MODEL
-#IFC_MODEL = None
+# global IFC_MODEL
+# IFC_MODEL = None
 O = 0., 0., 0.
 X = 1., 0., 0.
 Y = 0., 1., 0.
@@ -104,6 +104,7 @@ def create_building_story(sid: Annotated[str, InjectedToolArg], elevation: float
     if IFC_MODEL is None:
         print("No IFC model found for the given session.")
         create_session(sid)
+        IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
     try:
         # 1. Create the building story
         IFC_MODEL.create_building_stories(elevation, name)
@@ -134,6 +135,7 @@ def create_beam(sid: Annotated[str, InjectedToolArg], start_coord: str = "0,0,0"
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
+            IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
         # 1. Format coord and direction
         start_coord = tuple(map(float, start_coord.split(',')))
         end_coord = tuple(map(float, end_coord.split(',')))
@@ -225,6 +227,7 @@ def create_column(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
+            IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
         # 1. Get the appropriate story and its elevation.
         if len(IFC_MODEL.building_story_list) < story_n:
             IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
@@ -281,6 +284,7 @@ def create_grid(sid: Annotated[str, InjectedToolArg], grids_x_distance_between: 
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
+            IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
 
         grids_x_dictionary = OrderedDict()
         grids_y_dictionary = OrderedDict()
@@ -435,9 +439,14 @@ def create_wall(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_co
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
+            IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
 
+        print("length of ifc building storey",
+              len(IFC_MODEL.building_story_list))
         if len(IFC_MODEL.building_story_list) < story_n:
             IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
+            print("created building storey. current length:",
+                  len(IFC_MODEL.building_story_list))
 
         story = IFC_MODEL.building_story_list[story_n - 1]
         elevation = (story.Elevation)
@@ -501,6 +510,7 @@ def create_isolated_footing(sid: Annotated[str, InjectedToolArg], story_n: int =
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
+            IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
 
         # Get story information
         if len(IFC_MODEL.building_story_list) < story_n:
@@ -551,6 +561,7 @@ def create_strip_footing(sid: Annotated[str, InjectedToolArg], story_n: int = 1,
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
+            IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
 
         # Get story information
         if len(IFC_MODEL.building_story_list) < story_n:
@@ -602,6 +613,7 @@ def create_void_in_wall(sid: Annotated[str, InjectedToolArg], host_wall_id=None,
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
+            IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
 
         print(
             f"host_wall_id: {host_wall_id}, width: {width}, height: {height}, depth: {depth}, void_location: {void_location}")
@@ -633,7 +645,7 @@ def create_void_in_wall(sid: Annotated[str, InjectedToolArg], host_wall_id=None,
 
         # # Save structure
         IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
-        retrieval_tool = parse_ifc()
+        # retrieval_tool = parse_ifc()
 
         print("Void created and committed to the IFC file successfully.")
         return True
@@ -658,6 +670,7 @@ def create_floor(sid: Annotated[str, InjectedToolArg], story_n: int = 1, point_l
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
+            IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
 
         print(
             f"story_n: {story_n}, point_list: {point_list}, slab_thickness: {slab_thickness}")
@@ -791,6 +804,7 @@ def create_roof(sid: Annotated[str, InjectedToolArg], story_n: int = 1, point_li
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
+            IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
 
         print(
             f"story_n: {story_n}, point_list: {point_list}, roof_thickness: {roof_thickness}")
@@ -990,6 +1004,7 @@ def create_isolated_footing(sid: Annotated[str, InjectedToolArg], story_n: int =
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
+            IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
 
         # Get story information
         if len(IFC_MODEL.building_story_list) < story_n:
@@ -1040,6 +1055,7 @@ def create_strip_footing(sid: Annotated[str, InjectedToolArg], story_n: int = 1,
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
+            IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
 
         # Get story information
         if len(IFC_MODEL.building_story_list) < story_n:
@@ -1066,7 +1082,7 @@ def create_strip_footing(sid: Annotated[str, InjectedToolArg], story_n: int = 1,
 
         # Save structure
         IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
-        retrieval_tool = parse_ifc()
+        # retrieval_tool = parse_ifc()
 
         return True
     except Exception as e:
@@ -1088,6 +1104,7 @@ def search_canvas(sid: Annotated[str, InjectedToolArg], search_query: str, searc
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
+            IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
 
         loaded_file = ifcopenshell.open(f"public/{sid}/" + search_file)
         res = openai_client.chat.completions.create(
@@ -1163,6 +1180,7 @@ def delete_objects(sid: Annotated[str, InjectedToolArg], delete_query: str) -> b
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
+            IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
 
         relevant_objects = search_canvas(delete_query)
         print('relevant_objects', relevant_objects)
