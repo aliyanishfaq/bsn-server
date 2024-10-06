@@ -214,8 +214,8 @@ class IfcModel:
         - name: the name of the story.
         """
         # 1. Creates the placement of the story.
-        story_placement = self.create_ifclocalplacement(
-            relative_to=self.building_placement)
+        story_placement = self.create_ifclocalplacement(point=(0.0, 0.0, float(elevation)),
+                                                        relative_to=self.building_placement)
         # 2. Creates the story and adds it to the list of storys.
         building_story = self.ifcfile.createIfcBuildingStorey(self.create_guid(), self.owner_history, str(
             name), None, None, story_placement, None, None, "ELEMENT", float(elevation))
