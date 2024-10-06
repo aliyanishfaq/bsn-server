@@ -21,7 +21,7 @@ import base64
 from langgraph.checkpoint.memory import MemorySaver
 import re
 from global_store import global_store
-from agent_helpers import inject_sid
+from agent_helpers import inject_sid, get_element_characteristics
 
 
 # Constants
@@ -37,10 +37,6 @@ O = 0., 0., 0.
 X = 1., 0., 0.
 Y = 0., 1., 0.
 Z = 0., 0., 1.
-
-# Global dictionary to map task hash to user session ID (sid)
-TASK_TO_SID_MAP = {}
-
 
 # State definition
 class State(TypedDict):
@@ -203,26 +199,6 @@ buildsync_graph_builder.add_conditional_edges(
 memory = MemorySaver()
 graph = buildsync_graph_builder.compile(checkpointer=memory)
 
-# Extract characteristics of the elements
-
-
-def get_element_characteristics(id):
-    ifc_file = None  # CHANGE THIS TO THE WORKING IFC FILE
-    element = ifc_file.by_id(315)
-    if element:
-        return {
-            "IFC Type": element.is_a(),
-            "GlobalId": element.GlobalId,
-            "Name": getattr(element, "Name", None),
-            "ObjectType": getattr(element, "ObjectType", None),
-            "Description": getattr(element, "Description", None),
-            "Tag": getattr(element, "Tag", None),
-            "PredefinedType": getattr(element, "PredefinedType", None)
-        }
-    else:
-        return "Element not found."
-
-
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=15))
 async def stream_with_backoff(sid: str, data: dict, config: dict):
     user_command = data.get('message')
@@ -296,7 +272,7 @@ async def stream_with_backoff(sid: str, data: dict, config: dict):
         yield event
 
 
-async def model_streamer(sid, data: dict, unique_hash: str, curHighlightedObjects: dict):
+async def model_streamer(sid, data: dict, unique_hash: str, curHighlightedObjects: dict=None):
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
@@ -304,8 +280,15 @@ async def model_streamer(sid, data: dict, unique_hash: str, curHighlightedObject
         asyncio.set_event_loop(loop)
     tools_end = False
     config = {"configurable": {"thread_id": sid, "sid": sid}}
+    if curHighlightedObjects:
+        selected_objects_ids = list(curHighlightedObjects.values())
+        element_characteristics_prompt = "The user has selected the following object(s). Use them in context in responding to user query: \n"
+        for object_id in selected_objects_ids:
+            element_characteristics_prompt += get_element_characteristics(sid, object_id[0])
+        print('[model_streamer] element_characteristics_prompt', element_characteristics_prompt)
+        data['message'] = element_characteristics_prompt + "\n\nUSER QUERY: " + data['message']
+    
     async for event in stream_with_backoff(sid, data, config):
-        global_store.task_to_sid[unique_hash] = sid
         kind = event['event']
         # print(kind)
         if kind == 'on_chat_model_stream':
@@ -331,7 +314,6 @@ async def model_streamer(sid, data: dict, unique_hash: str, curHighlightedObject
             tools_end = True
             print(f"Done tool: {event.get('name')}")
             print(f"Tool output was: {event.get('data').get('output')}")
-            global_store.task_to_sid.pop(unique_hash, None)
             message = f"{event.get('name')} execution successfully completed"
             if bool(event.get('data').get('output')) is True:
                 message = f"""{

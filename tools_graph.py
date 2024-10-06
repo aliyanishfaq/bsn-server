@@ -1119,7 +1119,7 @@ def search_canvas(sid: Annotated[str, InjectedToolArg], search_query: str, searc
                         relevant. Sometimes the user request may be to delete certain objects or search for certain objects. In that case, you will return a JSON object with the the key as 'objects' 
                         and the value as list of all the IFC entities that are relevant.
                         Here's the mapping of objects to their relevant IFC mapping:
-                        walls -> IFCWall
+                        walls -> IFCWall & IfcWallStandardCase
                         window -> IFCWindow
                         column -> IfcColumn
                         roof -> IfcRoof
@@ -1175,15 +1175,26 @@ def delete_objects(sid: Annotated[str, InjectedToolArg], delete_query: str) -> b
     - delete_query (str): The user query that the user inputs. e.g. delete the right most wall, delete all the columns etc.
     """
     global openai_client
+    print('[delete_objects] sid', sid)
+    print('[delete_objects] delete_query', delete_query)
     try:
         IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
+        print('[delete_objects] IFC_MODEL', IFC_MODEL)
         if IFC_MODEL is None:
             print("No IFC model found for the given session.")
             create_session(sid)
             IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
-
-        relevant_objects = search_canvas(delete_query)
-        print('relevant_objects', relevant_objects)
+        try:
+            tool_input = {
+                "sid": sid,
+                "search_query": delete_query,
+                "search_file": "canvas.ifc"
+            }
+            relevant_objects = search_canvas(tool_input)
+            print('[delete_objects] relevant_objects', relevant_objects)
+        except Exception as e:
+            print('[delete_objects][search_canvas] An error occurred: ', e)
+            raise
         res = openai_client.chat.completions.create(
             model='gpt-4o',
             response_format={"type": "json_object"},
@@ -1201,6 +1212,7 @@ def delete_objects(sid: Annotated[str, InjectedToolArg], delete_query: str) -> b
                 }
             ]
         )
+        print('[delete_objects] res', res)
         try:
             json_object = json.loads(res.choices[0].message.content) or {}
         except json.JSONDecodeError:
@@ -1208,14 +1220,14 @@ def delete_objects(sid: Annotated[str, InjectedToolArg], delete_query: str) -> b
             raise
         if json_object:
             objects_ids_list = json_object.get('objects', [])
-            print(f"objects_ids_list: {objects_ids_list}")
+            print('[delete_objects] objects_ids_list', objects_ids_list)
             for object_id in objects_ids_list:
                 ifc_object = IFC_MODEL.ifcfile.by_guid(object_id)
                 IFC_MODEL.ifcfile.remove(ifc_object)
                 IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
             return True
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print('[delete_objects] An error occurred: ', e)
         raise
     return False
 
@@ -1344,7 +1356,6 @@ async def step_by_step_planner(sid: Annotated[str, InjectedToolArg], user_reques
     except Exception as e:
         print('[tools_graph.py] step_by_step_planner: ', e)
         return ''
-# FUNCTION HEADERS
 
 
 @tool

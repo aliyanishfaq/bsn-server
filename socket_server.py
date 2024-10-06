@@ -18,8 +18,7 @@ async def connection(sid):
 @sio.event
 async def disconnect(sid):
     print("User Disconnected from server")
-    if sid in global_store.sid_to_ifc_model:
-        global_store.sid_to_ifc_model.pop(sid)
+    global_store.sid_to_ifc_model.pop(sid, None)
 
     directory_path = os.path.join('public', sid)
     if os.path.exists(directory_path) and os.path.isdir(directory_path):

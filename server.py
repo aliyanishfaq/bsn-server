@@ -18,6 +18,7 @@ from tools_graph import create_on_start
 import hashlib
 import time
 import logging
+from global_store import global_store
 
 load_dotenv()
 
@@ -49,9 +50,6 @@ app.mount("/public", StaticFiles(directory="public"), name="public")
 # Create a Socket.IO server allowing CORS for specific origins
 combined_asgi_app = socketio.ASGIApp(sio, app)
 
-# current context
-curHighlightedObjects = None
-
 
 @ sio.event
 async def DOMContentLoaded(sid):
@@ -66,7 +64,7 @@ async def upload_file(file: UploadFile = File(...), sid: str = Header(None)):
         logger.info(f"Starting upload for file: {file.filename}")
 
         # Save the uploaded file
-        file_location = f"tmp/{file.filename}"
+        file_location = f"public/{file.filename}"
         logger.info(f"Saving file to: {file_location}")
         with open(file_location, "wb") as f:
             content = await file.read()
@@ -94,6 +92,13 @@ async def userAction(sid, data):
     print('User Action recieved')
     await sio.emit('userAction', data, room=sid)
     user_command = data['message']
+    curHighlightedObjects = None
+    viewer_message = data.get('highlightedFragments', None)
+    if viewer_message:
+        curHighlightedObjects = global_store.sid_to_highlighted_objects.get(sid, None)
+        print('[userAction] sid -> highlightedObjects', global_store.sid_to_highlighted_objects)
+        print('[userAction] curHighlightedObjects', curHighlightedObjects)
+        global_store.sid_to_highlighted_objects.pop(sid, None)
     if True:  # user_command.startswith('/')
         unique_string = f"{user_command}-{time.time()}"
         unique_hash = "ai-" + \
@@ -107,10 +112,10 @@ async def userAction(sid, data):
 
 @ sio.event
 async def highlightedFragments(sid, data):
-    global curHighlightedObjects
     print(f'highlightedFragments recieved {data}')
-    curHighlightedObjects = data
-
+    curHighlightedObjects = data.get('highlightedFragments', None)
+    global_store.sid_to_highlighted_objects[sid] = curHighlightedObjects
+    print('[highlightedFragments] curHighlightedObjects added to sid ', sid)
 
 @ sio.event
 async def fileChange(sid, data):

@@ -11,7 +11,7 @@ class GlobalStore:
             cls._instance = super(GlobalStore, cls).__new__(cls)
 
             # Dictionary to map task -> sid
-            cls._instance.task_to_sid = {}
+            cls._instance.sid_to_highlighted_objects = {}
             
             # Dictionary to map sid -> ifc_model
             cls._instance.sid_to_ifc_model = {}
