@@ -1,5 +1,5 @@
 """
-Class to extract features (parameters to BuildSync create functions) from IFC Entity into a dictionary
+Class to extract features (parameters to BuildSync create functions) from IFC Entity into a dictionary.
 """
 import numpy as np
 import warnings

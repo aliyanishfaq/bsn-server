@@ -19,6 +19,7 @@ import hashlib
 import time
 import logging
 from global_store import global_store
+from fastapi import Form
 
 load_dotenv()
 
@@ -58,13 +59,14 @@ async def DOMContentLoaded(sid):
 
 
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...), sid: str = Header(None)):
+async def upload_file(file: UploadFile = File(...), sid: str = Form(None)):
     print('Upload file received')
     try:
-        logger.info(f"Starting upload for file: {file.filename}")
-
         # Save the uploaded file
-        file_location = f"public/{file.filename}"
+        directory = f"public/{sid}"
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        file_location = f"{directory}/{file.filename}"
         logger.info(f"Saving file to: {file_location}")
         with open(file_location, "wb") as f:
             content = await file.read()
@@ -155,5 +157,4 @@ if __name__ == '__main__':
     perform_action()
     # streaming_answer = agent_executor.invoke({"input": "Create a square 20x20 feet structure on level 1. Show your thinking step by step but be concise."})
     # asyncio.run(start())
-    uvicorn.run("server:combined_asgi_app",
-                host="localhost", port=8000, reload=True)
+    uvicorn.run("server:combined_asgi_app", host="localhost", port=8000, reload=True)

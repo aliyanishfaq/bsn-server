@@ -12,7 +12,7 @@ sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins=[
 
 @sio.event
 async def connection(sid):
-    print("AI Connected to server")
+    print("Client connected to server")
 
 
 @sio.event
