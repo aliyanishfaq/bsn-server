@@ -421,7 +421,7 @@ def create_grid(sid: Annotated[str, InjectedToolArg], grids_x_distance_between: 
 
 
 @tool
-def create_wall(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = "0,0,0", height: float = 30.0, thickness: float = 1.0) -> bool:
+def create_wall(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_coord: str = "10,0,0", end_coord: str = "0,0,0", height: float = 30.0, thickness: float = 1.0, material: str = None, ) -> bool:
     """
     Creates a single wall in the Revit document based on specified start and end coordinates, level, wall type, structural flag, height, and thickness.
 
@@ -431,6 +431,7 @@ def create_wall(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_co
     - end_coord (str): The (x, y, z) coordinates of the wall's end point in the format "x,y,z".
     - height (float): The height of the wall. The default should be each story's respective elevations.
     - thickness (float): The thickness of the wall in ft.
+    - material (str): what the wall is made out of.
     """
     # global retrieval_tool
     try:
@@ -480,7 +481,7 @@ def create_wall(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_co
                 start_coord, Z, direction, relative_to=story_placement)
             # 5. Create the wall
             wall = IFC_MODEL.create_wall(
-                context, owner_history, wall_placement, length, height, thickness)
+                context, owner_history, wall_placement, length, height, thickness, material)
             wall_guid = wall.GlobalId
             IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
             ), owner_history, "Building story Container", None, [wall], story)
