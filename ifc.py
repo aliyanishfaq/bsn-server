@@ -44,6 +44,7 @@ class IfcModel:
         self.materials = dict()
         self.support_types = dict()
         self.steel_types = dict()
+        self.object_types = dict()
         self.project_globalid = self.create_guid()
         # 2. If there is no file name provided, create a new file. anad store all the necessary info
         if filename is None:
@@ -85,18 +86,28 @@ class IfcModel:
         else:
             self.ifcfile = ifcopenshell.open(filename)
 
-        self.add_support_type("Wood", 1, 0.5764705882,
-                              0, self.get_rectangle)
-        self.add_material("Brick", 1, 0, 0)
-        self.add_support_type("Concrete", 0.662745098,
+        self.add_support_type("wood", 1, 0.5764705882, 0, self.get_rectangle)
+        self.add_material("brick", 1, 0, 0)
+        self.add_support_type("concrete", 0.662745098,
                               0.662745098, 0.662745098, self.get_rectangle)
-        self.add_support_type("Steel", 106 / 255, 127 /
+        self.add_support_type("steel", 106 / 255, 127 /
                               255, 169 / 255, self.get_steel_shape_profile)
+        print("Support Types/Materials:", self.support_types, self.materials)
         self.support_types.setdefault(self.get_rectangle)
         self.steel_types["L"] = self.get_lshape_profile
         self.steel_types["C"] = self.get_cshape_profile
         self.steel_types["HSS"] = self.get_hss_profile
         self.steel_types["W"] = self.get_wshape_profile
+        self.object_types["wall"] = "IfcWall"
+        self.object_types['window'] = "IfcWindow"
+        self.object_types['column'] = "IfcColumn"
+        self.object_types['roof'] = "IfcRoof"
+        self.object_types['building'] = 'IfcBuilding'
+        self.object_types['door'] = 'IfcDoor'
+        self.object_types['beam'] = 'IfcBeam'
+        self.object_types['slab'] = 'IfcSlab'
+        self.object_types['floor'] = 'IfcSlab'
+        self.object_types['story'] = 'IfcBuildingStorey'
 
     def add_material(self, name, red, green, blue):
         style = ifcopenshell.api.style.add_style(self.ifcfile)
@@ -881,14 +892,22 @@ class IfcModel:
     def add_style_to_product(self, name, product):
         try:
             material_set = self.materials[name]
+            print(f"Material set for {name}: {material_set}")
             file3D = ifcopenshell.api.context.add_context(
                 self.ifcfile, context_type="Model")
+            print(f"3D file context created: {file3D}")
             body = ifcopenshell.api.context.add_context(self.ifcfile, context_type="Model", context_identifier="Body",
                                                         target_view="MODEL_VIEW", parent=file3D)
+            print(f"Body context created: {body}")
             ifcopenshell.api.material.assign_material(
                 self.ifcfile, products=[product], material=material_set[0])
-            return ifcopenshell.api.style.assign_material_style(self.ifcfile, material=material_set[0], style=material_set[1], context=body)
+            print(f"Material {material_set[0]} assigned to product {product}")
+            result = ifcopenshell.api.style.assign_material_style(
+                self.ifcfile, material=material_set[0], style=material_set[1], context=body)
+            print(f"Material style assigned: {result}")
+            return result
         except KeyError:
+            print(f"Material {name} not found in materials.")
             return None
 
     def get_cshape_profile(self, section_data, section_name):
