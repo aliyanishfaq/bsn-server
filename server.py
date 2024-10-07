@@ -62,6 +62,8 @@ async def DOMContentLoaded(sid):
 async def upload_file(file: UploadFile = File(...), sid: str = Form(None)):
     print('Upload file received')
     try:
+        if not sid:
+            raise HTTPException(status_code=400, detail="SID is required")
         # Save the uploaded file
         directory = f"public/{sid}"
         if not os.path.exists(directory):
