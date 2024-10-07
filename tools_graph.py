@@ -1352,3 +1352,42 @@ def create_door(story_n: int = 1, height: float = 1.0, width: float = 1.0, depth
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
+@tool
+def create_window(story_n: int = 1, height: float = 1.0, width: float = 1.0, depth: float = 1.0, position: tuple = (0.0, 0.0, 0.0), type: str = "BOTTOM", operation: str = "TILTANDTURNLEFTHAND", material: str = "Wood") :
+    """
+    Create and return a door baed on passed in parameters
+    """
+    try :
+    # Create a door at specified points, and if necessary create a void in the appropriate wall or door
+        if len(IFC_MODEL.building_story_list) < story_n:
+            IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
+        story = IFC_MODEL.building_story_list[story_n - 1]
+        elevation = (story.Elevation)
+        points = [(0.0, 0.0, 0.0), (0.0, height, 0.0), (width, height, 0.0), (width, 0.0, 0.0)]
+        try :
+            axis_placement = IFC_MODEL.create_ifcaxis2placement(point=position, dir1=Z, dir2=X)
+        except Exception as e:
+            print(f"Axis placement failed: {e}")
+            raise
+        try :
+            placement = IFC_MODEL.create_ifclocalplacement(point=position, dir1=Z, dir2=X, relative_to=story.ObjectPlacement)
+        except Exception as e:
+            print(f"Placement creation failed: {e}")
+            raise
+        try :
+            direction = IFC_MODEL.ifcfile.createIfcDirection((0.0, 0.0, 1.0))
+        except Exception as e:
+            print(f"Direction creation failed: {e}")
+            raise
+        solid = IFC_MODEL.create_ifcextrudedareasolid(point_list=points, ifcaxis2placement=axis_placement, extrude_dir=direction, extrusion=depth)
+        IFC_MODEL.add_style_to_product(material, solid)
+        history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
+        door = IFC_MODEL.ifcfile.createIfcWindow(IFC_MODEL.create_guid(), history, type, operation, None, placement, solid, None, None)
+        IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
+        ), history, "Building story Container", None, [door], story)
+        # Save structure
+        IFC_MODEL.save_ifc("public/canvas.ifc")
+        return True, door.GlobalID
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        raise
