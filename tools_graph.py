@@ -218,7 +218,7 @@ def create_beam(sid: Annotated[str, InjectedToolArg], start_coord: str = "0,0,0"
 
 
 @tool
-def create_column(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_coord: str = "0,0,0", height: float = 30, section_name: str = "W12X53") -> bool:
+def create_column(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_coord: str = "0,0,0", height: float = 30, section_name: str = "W12X53", material: str = None) -> bool:
     """
     Creates a single column in the Revit document based on specified location, width, depth, and height.
 
@@ -226,6 +226,7 @@ def create_column(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_
     - story_n (int): The story number that the user wants to place the column on
     - start_coord (str): The (x, y, z) coordinates of the column's location in the format "x,y,z".
     - height (float): The height of the column in feet.
+    - material (string): what the column is made out of.
     - section_name (string): The name of the column type.
     """
     # global retrieval_tool
@@ -262,7 +263,7 @@ def create_column(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_
 
         # 6. Create the column.
         column = IFC_MODEL.create_column(
-            context=context, owner_history=owner_history, column_placement=column_placement, height=height, section_name=section_name)
+            context=context, owner_history=owner_history, column_placement=column_placement, height=height, section_name=section_name, material=material)
         IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
         ), owner_history, "Building story Container", None, [column], story)
 
