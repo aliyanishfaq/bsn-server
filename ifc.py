@@ -3,12 +3,18 @@ import numpy as np
 import math
 import ifcopenshell.guid
 import ifcopenshell.util.element
+import ifcopenshell.api.material
+import ifcopenshell.api.style
+import ifcopenshell.api.context
 import time
 import tempfile
 import ifcopenshell
 import uuid
 import sys
 import pdb
+
+print("version: ifc openshell", ifcopenshell.version)
+
 
 O = 0., 0., 0.
 X = 1., 0., 0.
@@ -38,6 +44,10 @@ class IfcModel:
         self.timestamp = time.time()
         self.timestring = time.strftime(
             "%Y-%m-%dT%H:%M:%S", time.gmtime(self.timestamp))
+        self.materials = dict()
+        self.support_types = dict()
+        self.steel_types = dict()
+        self.object_types = dict()
         self.project_globalid = self.create_guid()
         # 2. If there is no file name provided, create a new file. anad store all the necessary info
         if filename is None:
@@ -78,6 +88,45 @@ class IfcModel:
         # 2. Otherwise open the existing file.
         else:
             self.ifcfile = ifcopenshell.open(filename)
+
+        self.add_support_type("wood", 1, 0.5764705882, 0, self.get_rectangle)
+        self.add_material("brick", 1, 0, 0)
+        self.add_support_type("concrete", 0.662745098,
+                              0.662745098, 0.662745098, self.get_rectangle)
+        self.add_support_type("steel", 106 / 255, 127 /
+                              255, 169 / 255, self.get_steel_shape_profile)
+        # print("Support Types/Materials:", self.support_types, self.materials)
+        self.support_types.setdefault(self.get_rectangle)
+        self.steel_types["L"] = self.get_lshape_profile
+        self.steel_types["C"] = self.get_cshape_profile
+        self.steel_types["HSS"] = self.get_hss_profile
+        self.steel_types["W"] = self.get_wshape_profile
+        print(f"steel types done: {self.steel_types}")
+        self.object_types["wall"] = "IfcWall"
+        self.object_types['window'] = "IfcWindow"
+        self.object_types['column'] = "IfcColumn"
+        self.object_types['roof'] = "IfcRoof"
+        self.object_types['building'] = 'IfcBuilding'
+        self.object_types['door'] = 'IfcDoor'
+        self.object_types['beam'] = 'IfcBeam'
+        self.object_types['slab'] = 'IfcSlab'
+        self.object_types['floor'] = 'IfcSlab'
+        self.object_types['story'] = 'IfcBuildingStorey'
+
+    def add_material(self, name, red, green, blue):
+        style = ifcopenshell.api.style.add_style(self.ifcfile)
+        material = ifcopenshell.api.material.add_material(self.ifcfile, name)
+        ifcopenshell.api.style.add_surface_style(self.ifcfile, style=style, ifc_class="IfcSurfaceStyleShading", attributes={
+            "SurfaceColour": {"Name": None, "Red": red, "Green": green, "Blue": blue}
+        })
+        self.materials[name] = (material, style)
+        return self.materials[name]
+
+    def add_support_type(self, name, red, green, blue, shaper):
+        # print(f"""Name: {name}, Red: {red}, Green: {
+        #       green}, Blue: {blue}, Shaper: {shaper}""")
+        self.add_material(name, red, green, blue)
+        self.support_types[name] = shaper
 
     def create_guid(self):
         """
@@ -221,7 +270,7 @@ class IfcModel:
             name), None, None, story_placement, None, None, "ELEMENT", float(elevation))
         self.building_story_list.append(building_story)
 
-    def create_wall(self, context, owner_history, wall_placement, length, height, thickness):
+    def create_wall(self, context, owner_history, wall_placement, length, height, thickness, material):
         """
         Creates and returns a single wall in the IFC model, based on placement, height, length, and thickness.
 
@@ -260,9 +309,10 @@ class IfcModel:
         # 4. Create and return wall
         wall = self.ifcfile.createIfcWallStandardCase(self.create_guid(), owner_history, "Wall", None, None,
                                                       wall_placement, product_shape, None)
+        self.add_style_to_product(material, wall)
         return wall
 
-    def create_column(self, context, owner_history, column_placement, height, section_name):
+    def create_column(self, context, owner_history, column_placement, height, section_name, material):
         """
         Creates and returns a single column in the IFC model, based on placement and height.
 
@@ -291,9 +341,10 @@ class IfcModel:
         # 4. Create the final column and return it
         column = self.ifcfile.createIfcColumn(self.create_guid(
         ), owner_history, "W-Shaped Column", None, None, column_placement, product_shape, None)
+        self.add_style_to_product(material, column)
         return column
 
-    def create_beam(self, context, owner_history, beam_placement, length, section_name):
+    def create_beam(self, context, owner_history, beam_placement, length, section_name, material):
         """
         Creates and returns a single beam in the IFC model, based on placement and length.
 
@@ -326,6 +377,7 @@ class IfcModel:
         # 5. Create the beam and return it
         beam = self.ifcfile.createIfcBeam(self.create_guid(), owner_history, "Beam", None, None,
                                           beam_placement, product_shape, None)
+        self.add_style_to_product(material, beam)
         return beam
 
     def create_isolated_footing(self, location: tuple, length: float, width: float, thickness: float) -> None:
@@ -736,6 +788,50 @@ class IfcModel:
         """
         self.ifcfile.write(filename)
 
+    def get_steel_shape_profile(self, section_name, length, width):
+        """
+        Returns the shape of the specified section.
+
+        Parameters:
+        - section_name: the name of the section to get the shape of.
+        """
+        # 1. Read in the csv file with profile data.
+        try:
+            wshapes_df = pd.read_csv(
+                "aisc-shapes-database-v15.0.csv", encoding='utf-8')
+        except UnicodeDecodeError:
+            try:
+                wshapes_df = pd.read_csv(
+                    "aisc-shapes-database-v15.0.csv", encoding='ISO-8859-1')
+            except FileNotFoundError:
+                print('File not found: aisc-shapes-database-v15.0.csv')
+                raise
+            except Exception as e:
+                print(
+                    f'An unexpected error occurred while reading the file with ISO-8859-1 encoding: {e}')
+                raise
+        except FileNotFoundError:
+            print('File not found: aisc-shapes-database-v15.0.csv')
+            raise
+        except Exception as e:
+            print(
+                f'An unexpected error occurred while reading the file with utf-8 encoding: {e}')
+            raise
+
+        # 2. Get the necessary dimensions.
+        section_data = wshapes_df[wshapes_df["AISC_Manual_Label"]
+                                  == section_name]
+
+        if not section_data.empty:  # check that section exists in database
+            if self.steel_types[section_name[0]] != None:
+                return self.steel_types[section_name[0]](section_data, section_name)
+            else:
+                raise NotImplementedError(
+                    f"AISC Shape Type {section_name[0]} not implemented for use")
+        else:
+            raise ValueError(
+                f"Section {section_name} not found in AISC database.")
+
     def get_wshape_profile(self, section_name):
         """
         Returns the shape of the specified section.
@@ -797,6 +893,179 @@ class IfcModel:
         polyline = self.ifcfile.createIfcPolyline(ifcpts)
         ifcclosedprofile = self.ifcfile.createIfcArbitraryClosedProfileDef(
             "AREA", None, polyline)
+
+        # 5. Return the closed profile
+        return ifcclosedprofile
+
+    def add_style_to_product(self, name, product):
+        try:
+            print(f"Product type: {type(product)}")
+            material_set = self.materials[name]
+            print(f"Material set: {material_set}")
+            print(f"Material set for {name}: {material_set}")
+            file3D = ifcopenshell.api.context.add_context(
+                self.ifcfile, context_type="Model")
+            print(f"3D file context created: {file3D}")
+            body = ifcopenshell.api.context.add_context(self.ifcfile, context_type="Model", context_identifier="Body",
+                                                        target_view="MODEL_VIEW", parent=file3D)
+            print(f"Body context created: {body}")
+            ifcopenshell.api.material.assign_material(
+                self.ifcfile, products=[product], material=material_set[0])
+            print(f"Material {material_set[0]} assigned to product {product}")
+            result = ifcopenshell.api.style.assign_material_style(
+                self.ifcfile, material=material_set[0], style=material_set[1], context=body)
+            return result
+
+        except Exception as e:
+            print(f"An error occurred in add_style_to_product: {e}")
+
+    def get_cshape_profile(self, section_data, section_name):
+        d = float(section_data['d'].iloc[0]) / 12
+        t = float(section_data['T'].iloc[0]) / 12
+        k = float(section_data['k'].iloc[0]) / 12
+        bf = float(section_data['bf'].iloc[0]) / 12
+        tw = float(section_data['tw'].iloc[0]) / 12
+        point_list = [
+            (bf/2, 0.0), (bf/2, k), (-bf/2 + tw, d - t),  # Lower right corner
+            (-bf/2 + tw, t), (bf/2, t + k), (bf/2, d),  # Upper right corner
+            (-bf/2, d),  # Upper left corner
+            (-bf/2, 0.0)  # Lower right corner
+        ]
+        # 4. Convert the point list to a closed profile.
+        ifcpts = [self.ifcfile.createIfcCartesianPoint(
+            point) for point in point_list]
+        polyline = self.ifcfile.createIfcPolyline(ifcpts)
+        ifcclosedprofile = self.ifcfile.createIfcArbitraryClosedProfileDef(
+            "AREA", None, polyline)
+
+        # 5. Return the closed profile
+        return ifcclosedprofile
+
+    def get_hss_profile(self, section_data, section_name):
+        if section_name.count('X') == 1:
+            return self.get_hssround_profile(section_data, section_name)
+        else:
+            return self.get_hssrect_profile(section_data, section_name)
+
+    def get_lshape_profile(self, section_data, section_name):
+        parameters = section_name.removeprefix('L')
+        numbers = parameters.split(sep='X')
+        x = self.get_parameter(numbers[0])
+        y = self.get_parameter(numbers[1])
+        d = self.get_parameter(numbers[2])
+        point_list = [
+            (0.0, 0.0), (0.0, y), (d, y), (d, d),
+            (x, d), (x, 0.0)
+        ]
+        # 4. Convert the point list to a closed profile.
+        ifcpts = [self.ifcfile.createIfcCartesianPoint(
+            point) for point in point_list]
+        polyline = self.ifcfile.createIfcPolyline(ifcpts)
+        ifcclosedprofile = self.ifcfile.createIfcArbitraryClosedProfileDef(
+            "AREA", None, polyline)
+
+        # 5. Return the closed profile
+        return ifcclosedprofile
+
+    def get_parameter(self, data):
+        rtn = 0
+        if '/' in data:
+            if '-' in data:
+                rtn = float(data[0:data.find('-')])
+                data = data[data.find('-')]
+            [numerator, denominator] = data.split('/')
+            rtn += float(numerator) / float(denominator)
+        else:
+            rtn = float(data)
+        return rtn
+
+    def get_hssrect_profile(self, section_data, section_name):
+        b = float(section_data['b'].iloc[0]) / 12
+        h = float(section_data['h'].iloc[0]) / 12
+        t = float(section_data['t'].iloc[0]) / 12
+        right_points = [
+            (0.0, -h/2), (b/2, -h/2), (b/2, h/2), (0.0, h/2),
+            (0.0, h/2 - t), (b/2 - t, h/2 - t), (b/2 - t, -h/2 + t), (0.0, -h/2 + t)
+
+        ]
+        left_points = [
+            (0.0, -h/2), (-b/2, -h/2), (-b/2, h/2), (0.0, h/2),
+            (0.0, h/2 - t), (-b/2 + t, h/2 -
+                             t), (-b/2 + t, -h/2 + t), (0.0, -h/2 + t)
+        ]
+        ifcpts_r = [self.ifcfile.createIfcCartesianPoint(
+            point_r) for point_r in right_points]
+        ifcpts_l = [self.ifcfile.createIfcCartesianPoint(
+            point_l) for point_l in left_points]
+        polyline_r = self.ifcfile.createIfcPolyline(ifcpts_r)
+        polyline_l = self.ifcfile.createIfcPolyline(ifcpts_l)
+        profile_r = self.ifcfile.createIfcArbitraryClosedProfileDef(
+            "AREA", None, polyline_r)
+        profile_l = self.ifcfile.createIfcArbitraryClosedProfileDef(
+            "AREA", None, polyline_l)
+        profile = self.ifcfile.createIfcCompositeProfileDef(
+            "AREA", None, [profile_l, profile_r], None)
+        return profile
+
+    def get_hssround_profile(self, section_data, section_name):
+        r = float(section_data['r'].iloc[0]) / 12
+        t = float(section_data['t'].iloc[0]) / 12
+        right_points = [
+            (0.0, r), (r, 0.0), (0.0, -r),
+            (0.0, -r + t), (r - t, 0.0), (0.0, r - t)
+        ]
+        left_points = [
+            (0.0, r), (-r, 0.0), (0.0, -r),
+            (0.0, -r + t), (-r + t, 0.0), (0.0, r - t)
+        ]
+        list_r = self.ifcfile.createIfcCartesianPointList2D(right_points, None)
+        list_l = self.ifcfile.createIfcCartesianPointList2D(left_points, None)
+        curve_r = self.ifcfile.createIfcIndexedPolyCurve(list_r, [
+            self.ifcfile.createIfcCurveIndex(
+                1, 2), self.ifcfile.createIfcCurveIndex(2, 3),
+            self.ifcfile.createIfcLineIndex(
+                3, 4), self.ifcfile.createIfcCurveIndex(4, 5),
+            self.ifcfile.createIfcCurveIndex(
+                5, 6), self.ifcfile.createIfcLineIndex(6, 1)
+        ], None)
+        curve_l = self.ifcfile.createIfcIndexedPolyCurve(list_l, [
+            self.ifcfile.createIfcCurveIndex(
+                1, 2), self.ifcfile.createIfcCurveIndex(2, 3),
+            self.ifcfile.createIfcLineIndex(
+                3, 4), self.ifcfile.createIfcCurveIndex(4, 5),
+            self.ifcfile.createIfcCurveIndex(
+                5, 6), self.ifcfile.createIfcLineIndex(6, 1)
+        ], None)
+        profile_r = self.ifcfile.createIfcArbitraryClosedProfileDef(
+            "AREA", None, curve_r)
+        profile_l = self.ifcfile.createIfcArbitraryClosedProfileDef(
+            "AREA", None, curve_l)
+        profile = self.ifcfile.createIfcCompositeProfileDef(
+            "AREA", None, [profile_l, profile_r], None)
+        return profile
+
+    def get_rectangle(self, section_name, length, width):
+        points = [
+            [0.0, 0.0, 0.0], [0.0, width, 0.0], [
+                length, width, 0.0], [length, 0.0, 0.0]
+        ]
+        print(f"Points: {points}")
+        ifcpts = []
+        for point in points:
+            # Ensure all values are floats
+            coords = list(map(float, point))
+            ifc_point = self.ifcfile.createIfcCartesianPoint(coords)
+            ifcpts.append(ifc_point)
+
+        # # Print the created IFC points
+        # for ifc_point in ifcpts:
+        #     print(ifc_point)
+        # print(f"IFC Points: {ifcpts}")
+        polyline = self.ifcfile.createIfcPolyline(ifcpts)
+        print(f"Polyline: {polyline}")
+        ifcclosedprofile = self.ifcfile.createIfcArbitraryClosedProfileDef(
+            "AREA", None, polyline)
+        print(f"IFC Closed Profile: {ifcclosedprofile}")
 
         # 5. Return the closed profile
         return ifcclosedprofile
