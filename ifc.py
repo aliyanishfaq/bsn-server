@@ -13,6 +13,9 @@ import uuid
 import sys
 import pdb
 
+print("version: ifc openshell", ifcopenshell.version)
+
+
 O = 0., 0., 0.
 X = 1., 0., 0.
 Y = 0., 1., 0.
@@ -92,12 +95,13 @@ class IfcModel:
                               0.662745098, 0.662745098, self.get_rectangle)
         self.add_support_type("steel", 106 / 255, 127 /
                               255, 169 / 255, self.get_steel_shape_profile)
-        print("Support Types/Materials:", self.support_types, self.materials)
+        # print("Support Types/Materials:", self.support_types, self.materials)
         self.support_types.setdefault(self.get_rectangle)
         self.steel_types["L"] = self.get_lshape_profile
         self.steel_types["C"] = self.get_cshape_profile
         self.steel_types["HSS"] = self.get_hss_profile
         self.steel_types["W"] = self.get_wshape_profile
+        print(f"steel types done: {self.steel_types}")
         self.object_types["wall"] = "IfcWall"
         self.object_types['window'] = "IfcWindow"
         self.object_types['column'] = "IfcColumn"
@@ -119,6 +123,8 @@ class IfcModel:
         return self.materials[name]
 
     def add_support_type(self, name, red, green, blue, shaper):
+        # print(f"""Name: {name}, Red: {red}, Green: {
+        #       green}, Blue: {blue}, Shaper: {shaper}""")
         self.add_material(name, red, green, blue)
         self.support_types[name] = shaper
 
@@ -306,7 +312,7 @@ class IfcModel:
         self.add_style_to_product(material, wall)
         return wall
 
-    def create_column(self, context, owner_history, column_placement, height, section_name):
+    def create_column(self, context, owner_history, column_placement, height, section_name, material):
         """
         Creates and returns a single column in the IFC model, based on placement and height.
 
@@ -335,9 +341,10 @@ class IfcModel:
         # 4. Create the final column and return it
         column = self.ifcfile.createIfcColumn(self.create_guid(
         ), owner_history, "W-Shaped Column", None, None, column_placement, product_shape, None)
+        self.add_style_to_product(material, column)
         return column
 
-    def create_beam(self, context, owner_history, beam_placement, length, section_name):
+    def create_beam(self, context, owner_history, beam_placement, length, section_name, material):
         """
         Creates and returns a single beam in the IFC model, based on placement and length.
 
@@ -370,6 +377,7 @@ class IfcModel:
         # 5. Create the beam and return it
         beam = self.ifcfile.createIfcBeam(self.create_guid(), owner_history, "Beam", None, None,
                                           beam_placement, product_shape, None)
+        self.add_style_to_product(material, beam)
         return beam
 
     def create_isolated_footing(self, location: tuple, length: float, width: float, thickness: float) -> None:
@@ -891,7 +899,9 @@ class IfcModel:
 
     def add_style_to_product(self, name, product):
         try:
+            print(f"Product type: {type(product)}")
             material_set = self.materials[name]
+            print(f"Material set: {material_set}")
             print(f"Material set for {name}: {material_set}")
             file3D = ifcopenshell.api.context.add_context(
                 self.ifcfile, context_type="Model")
@@ -904,11 +914,10 @@ class IfcModel:
             print(f"Material {material_set[0]} assigned to product {product}")
             result = ifcopenshell.api.style.assign_material_style(
                 self.ifcfile, material=material_set[0], style=material_set[1], context=body)
-            print(f"Material style assigned: {result}")
             return result
-        except KeyError:
-            print(f"Material {name} not found in materials.")
-            return None
+
+        except Exception as e:
+            print(f"An error occurred in add_style_to_product: {e}")
 
     def get_cshape_profile(self, section_data, section_name):
         d = float(section_data['d'].iloc[0]) / 12
@@ -1038,14 +1047,25 @@ class IfcModel:
     def get_rectangle(self, section_name, length, width):
         points = [
             [0.0, 0.0, 0.0], [0.0, width, 0.0], [
-                length, width], [length, width, 0.0]
+                length, width, 0.0], [length, 0.0, 0.0]
         ]
-        ifcpts = [
-            self.ifcfile.createIfcCartesianPoint(point) for point in points
-        ]
+        print(f"Points: {points}")
+        ifcpts = []
+        for point in points:
+            # Ensure all values are floats
+            coords = list(map(float, point))
+            ifc_point = self.ifcfile.createIfcCartesianPoint(coords)
+            ifcpts.append(ifc_point)
+
+        # # Print the created IFC points
+        # for ifc_point in ifcpts:
+        #     print(ifc_point)
+        # print(f"IFC Points: {ifcpts}")
         polyline = self.ifcfile.createIfcPolyline(ifcpts)
+        print(f"Polyline: {polyline}")
         ifcclosedprofile = self.ifcfile.createIfcArbitraryClosedProfileDef(
             "AREA", None, polyline)
+        print(f"IFC Closed Profile: {ifcclosedprofile}")
 
         # 5. Return the closed profile
         return ifcclosedprofile

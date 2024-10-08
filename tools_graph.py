@@ -120,7 +120,7 @@ def create_building_story(sid: Annotated[str, InjectedToolArg], elevation: float
 
 
 @tool
-def create_beam(sid: Annotated[str, InjectedToolArg], start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_name: str = 'W16X40', story_n: int = 1) -> None:
+def create_beam(sid: Annotated[str, InjectedToolArg], start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_name: str = 'W16X40', story_n: int = 1, material: str = None,) -> None:
     """
     Creates a beam at the specified start coordinate with the given dimensions.
 
@@ -129,7 +129,10 @@ def create_beam(sid: Annotated[str, InjectedToolArg], start_coord: str = "0,0,0"
     - end_coord (str): The (x, y, z) coordinates of the beam's end point in the format "x,y,z".
     - section_name (str): The beam profile name (e.g. W16X40).
     - story_n (int): The story number that the user wants to place the beam on
+    - material (string): What the beam is made out of.
     """
+    if material:
+        material = material.lower()
     try:
         IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
         if IFC_MODEL is None:
@@ -182,16 +185,20 @@ def create_beam(sid: Annotated[str, InjectedToolArg], start_coord: str = "0,0,0"
         # 4-4. Create extruded area section for beam.
         bm_extrusion = IFC_MODEL.ifcfile.createIfcExtrudedAreaSolid()
         ifcclosedprofile = IFC_MODEL.get_wshape_profile(section_name)
+
         ifcclosedprofile.ProfileName = section_name
         bm_extrusion.SweptArea = ifcclosedprofile
         bm_extrusion.Position = bm_extrudePlacement
         bm_extrusion.ExtrudedDirection = IFC_MODEL.ifcfile.createIfcDirection(
             (0.0, 0.0, 1.0))
         bm_extrusion.Depth = length
+        print(f"bm_extrusion: {bm_extrusion}")
 
         # 5. Create shape representation for beam.
         bm_rep = IFC_MODEL.ifcfile.createIfcShapeRepresentation(
             context, "Body", "SweptSolid", [bm_extrusion])
+
+        IFC_MODEL.add_style_to_product(material, bm)
 
         # 6. Create a product shape for beam.
         bm_prod = IFC_MODEL.ifcfile.createIfcProductDefinitionShape()
@@ -222,6 +229,8 @@ def create_column(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_
     - section_name (string): The name of the column type.
     """
     # global retrieval_tool
+    if material:
+        material = material.lower()
     try:
         IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
         if IFC_MODEL is None:
@@ -434,6 +443,8 @@ def create_wall(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_co
     - material (str): what the wall is made out of.
     """
     # global retrieval_tool
+    if material:
+        material = material.lower()
     try:
         IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
         print('IFC_MODEL IN CREATE WALL: ', IFC_MODEL)
