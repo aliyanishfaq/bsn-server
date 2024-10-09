@@ -800,7 +800,63 @@ def create_floor(sid: Annotated[str, InjectedToolArg], story_n: int = 1, point_l
         print(f"An error occurred: {e}")
         raise
 
+def are_points_3d(point_list) :
+    for point in point_list :
+        if point[2] != 0.0 :
+            return True
+    return False
+#test line: /create new floor with a thickness of 2.0 from the following points: (0.0, 0.0, 0.0), (10.0, 0.0, 0.0), (10.0, 10.0, 2.0), (0.0, 10.0, 2.0)
+def make_sloped_geometry(sid: Annotated[str, InjectedToolArg], point_list, thickness) :
+    """
+    Create arbitrary sloped geometry with a specified thickness in the z-axis.
 
+    Parameters:
+    - point_list: the points to base this off of.
+    - thickness: how tall to make the extruded geometry.
+    """
+    # 1. Initialize variables used for storing data.
+    IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
+    if IFC_MODEL is None:
+        print("No IFC model found for the given session.")
+        create_session(sid)
+        IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
+    original_length = len(point_list)
+    faces = []
+    points = []
+    faces.append(tuple(list(range(len(point_list)))))
+    faces.append(tuple(list(range(original_length, original_length * 2))))
+    for spot in point_list :
+        points.append((spot[0], spot[1], spot[2]))
+    original_max_index = original_length - 1
+    # 2. Add the converted new points and faces based off of thickness.
+    for i in range(original_length, original_length * 2) :
+        point = points[i - original_length]
+        points.append((point[0], point[1], point[2] - thickness))
+    for j in range(0, original_max_index) :
+        faces.append((j, j + 1, j + 1 + original_length, j + original_length))
+    faces.append((original_max_index, 0, original_length, original_length + original_max_index))
+    # 3. Convert the working variables to formats in the IFC spec.
+    cart_points = [
+        IFC_MODEL.ifcfile.createIfcCartesianPoint(place) for place in points
+    ]
+    loops = []
+    for face in faces: 
+        actual = [
+            cart_points[face_point] for face_point in face
+        ]
+        loops.append(IFC_MODEL.ifcfile.createIfcPolyLoop(actual))
+    face_bounds = [
+        (IFC_MODEL.ifcfile.createIfcFaceOuterBound(loop, True)) for loop in loops
+    ]
+    actual_faces = [
+        IFC_MODEL.ifcfile.createIfcFace([bound]) for bound in face_bounds
+    ]
+    # 4. Create and return the actual sloped geometry.
+    shell = IFC_MODEL.ifcfile.createIfcClosedShell(actual_faces)
+    brep = IFC_MODEL.ifcfile.createIfcFacetedBrep(shell)
+    context_source = ifcopenshell.api.context.add_context(IFC_MODEL.ifcfile, context_type="Model")
+    context = ifcopenshell.api.context.add_context(IFC_MODEL.ifcfile, context_type="Model", context_identifier="Body", target_view="MODEL_VIEW", parent=context_source)
+    return IFC_MODEL.ifcfile.createIfcShapeRepresentation(context, 'Body', 'Brep', [brep])
 @tool
 def create_roof(sid: Annotated[str, InjectedToolArg], story_n: int = 1, point_list: list = [(0, 0, 0), (0, 100, 0), (100, 100, 0), (100, 0, 0)], roof_thickness: float = 1.0) -> bool:
     """
