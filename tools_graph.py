@@ -1356,7 +1356,7 @@ def create_door(story_n: int = 1, height: float = 1.0, width: float = 1.0, depth
         print(f"An error occurred: {e}")
         raise
 @tool
-def create_window(story_n: int = 1, height: float = 1.0, width: float = 1.0, depth: float = 1.0, position: tuple = (0.0, 0.0, 0.0), type: str = "BOTTOM", operation: str = "TILTANDTURNLEFTHAND", material: str = "Wood") :
+def create_window(story_n: int = 1, height: float = 1.0, width: float = 1.0, depth: float = 1.0, position: tuple = (0.0, 0.0, 0.0), type: str = "STEEL", operation: str = "DOUBLE_PANEL_VERTICAL", material: str = "Wood") :
     """
     Create and return a door baed on passed in parameters
     """
@@ -1366,7 +1366,13 @@ def create_window(story_n: int = 1, height: float = 1.0, width: float = 1.0, dep
             IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
         story = IFC_MODEL.building_story_list[story_n - 1]
         elevation = (story.Elevation)
-        points = [(0.0, 0.0, 0.0), (0.0, height, 0.0), (width, height, 0.0), (width, 0.0, 0.0)]
+        context = IFC_MODEL.ifcfile.by_type(
+                "IfcGeometricRepresentationContext")[0]
+        polyline = IFC_MODEL.create_ifcpolyline(
+            [(0.0, 0.0, 0.0), (height, 0.0, 0.0)])
+        axis_rep = IFC_MODEL.ifcfile.createIfcShapeRepresentation(
+            context, "Axis", "Curve2D", [polyline])
+        points = [(0.0, 0.0, 0.0), (0.0, depth, 0.0), (width, depth, 0.0), (width, 0.0, 0.0)]
         try :
             axis_placement = IFC_MODEL.create_ifcaxis2placement(point=position, dir1=Z, dir2=X)
         except Exception as e:
@@ -1382,10 +1388,15 @@ def create_window(story_n: int = 1, height: float = 1.0, width: float = 1.0, dep
         except Exception as e:
             print(f"Direction creation failed: {e}")
             raise
-        solid = IFC_MODEL.create_ifcextrudedareasolid(point_list=points, ifcaxis2placement=axis_placement, extrude_dir=Z, extrusion=depth)
-        history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
-        window = IFC_MODEL.ifcfile.createIfcWindow(IFC_MODEL.create_guid(), history, type, operation, None, placement, solid, None, None)
-        IFC_MODEL.add_style_to_product(material, window)
+        solid = IFC_MODEL.create_ifcextrudedareasolid(point_list=points, ifcaxis2placement=axis_placement, extrude_dir=Z, extrusion=height)
+        body_rep = IFC_MODEL.ifcfile.createIfcShapeRepresentation(
+            context, "Body", "SweptSolid", [solid])
+        product_shape = IFC_MODEL.ifcfile.createIfcProductDefinitionShape(
+            None, None, [axis_rep, body_rep])
+        history: ifcopenshell.entity_instance = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
+        window = IFC_MODEL.ifcfile.createIfcWindow(IFC_MODEL.create_guid(), history, type, operation, None, placement, product_shape, None, None)
+        style = IFC_MODEL.ifcfile.createIfcWindowStyle(type, operation, True, True)
+        defines = IFC_MODEL.ifcfile.createIfcRelDefinesByType(IFC_MODEL.create_guid(), history, None, None, [window], style)
         IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
         ), history, "Building story Container", None, [window], story)
         # Save structure
