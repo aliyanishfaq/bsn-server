@@ -1,170 +1,7 @@
 [
     {
-        "Type": "IfcBuilding",
-        "GlobalId": "0NSMMOXC8Hxw1uCeZ9vErl",
-        "Name": "Building",
-        "ObjectPlacement": {
-            "Type": "IfcLocalPlacement",
-            "PlacementRelTo": {
-                "Type": "IfcLocalPlacement",
-                "RelativePlacement": {
-                    "Type": "IfcAxis2Placement3D",
-                    "Location": {
-                        "Type": "IfcCartesianPoint",
-                        "Coordinates": [
-                            0.0,
-                            0.0,
-                            0.0
-                        ]
-                    },
-                    "Axis": {
-                        "Type": "IfcDirection",
-                        "DirectionRatios": [
-                            0.0,
-                            0.0,
-                            1.0
-                        ]
-                    },
-                    "RefDirection": {
-                        "Type": "IfcDirection",
-                        "DirectionRatios": [
-                            1.0,
-                            0.0,
-                            0.0
-                        ]
-                    }
-                }
-            },
-            "RelativePlacement": {
-                "Type": "IfcAxis2Placement3D",
-                "Location": {
-                    "Type": "IfcCartesianPoint",
-                    "Coordinates": [
-                        0.0,
-                        0.0,
-                        0.0
-                    ]
-                },
-                "Axis": {
-                    "Type": "IfcDirection",
-                    "DirectionRatios": [
-                        0.0,
-                        0.0,
-                        1.0
-                    ]
-                },
-                "RefDirection": {
-                    "Type": "IfcDirection",
-                    "DirectionRatios": [
-                        1.0,
-                        0.0,
-                        0.0
-                    ]
-                }
-            }
-        },
-        "CompositionType": "ELEMENT"
-    },
-    {
-        "Type": "IfcBuildingStorey",
-        "GlobalId": "0h3SKkXC8Hxw1uCeZ9vErl",
-        "Name": "Level 1",
-        "ObjectPlacement": {
-            "Type": "IfcLocalPlacement",
-            "PlacementRelTo": {
-                "Type": "IfcLocalPlacement",
-                "PlacementRelTo": {
-                    "Type": "IfcLocalPlacement",
-                    "RelativePlacement": {
-                        "Type": "IfcAxis2Placement3D",
-                        "Location": {
-                            "Type": "IfcCartesianPoint",
-                            "Coordinates": [
-                                0.0,
-                                0.0,
-                                0.0
-                            ]
-                        },
-                        "Axis": {
-                            "Type": "IfcDirection",
-                            "DirectionRatios": [
-                                0.0,
-                                0.0,
-                                1.0
-                            ]
-                        },
-                        "RefDirection": {
-                            "Type": "IfcDirection",
-                            "DirectionRatios": [
-                                1.0,
-                                0.0,
-                                0.0
-                            ]
-                        }
-                    }
-                },
-                "RelativePlacement": {
-                    "Type": "IfcAxis2Placement3D",
-                    "Location": {
-                        "Type": "IfcCartesianPoint",
-                        "Coordinates": [
-                            0.0,
-                            0.0,
-                            0.0
-                        ]
-                    },
-                    "Axis": {
-                        "Type": "IfcDirection",
-                        "DirectionRatios": [
-                            0.0,
-                            0.0,
-                            1.0
-                        ]
-                    },
-                    "RefDirection": {
-                        "Type": "IfcDirection",
-                        "DirectionRatios": [
-                            1.0,
-                            0.0,
-                            0.0
-                        ]
-                    }
-                }
-            },
-            "RelativePlacement": {
-                "Type": "IfcAxis2Placement3D",
-                "Location": {
-                    "Type": "IfcCartesianPoint",
-                    "Coordinates": [
-                        0.0,
-                        0.0,
-                        0.0
-                    ]
-                },
-                "Axis": {
-                    "Type": "IfcDirection",
-                    "DirectionRatios": [
-                        0.0,
-                        0.0,
-                        1.0
-                    ]
-                },
-                "RefDirection": {
-                    "Type": "IfcDirection",
-                    "DirectionRatios": [
-                        1.0,
-                        0.0,
-                        0.0
-                    ]
-                }
-            }
-        },
-        "CompositionType": "ELEMENT",
-        "Elevation": 0.0
-    },
-    {
         "Type": "IfcWallStandardCase",
-        "GlobalId": "0qaO6KXC8Hxw1uCeZ9vErl",
+        "GlobalId": "06RqfOXUaHxw0yCeZ9vErl",
         "Name": "Wall",
         "ObjectPlacement": {
             "Type": "IfcLocalPlacement",
@@ -349,7 +186,7 @@
                                 {
                                     "Type": "IfcCartesianPoint",
                                     "Coordinates": [
-                                        10.0,
+                                        15.0,
                                         0.0,
                                         0.0
                                     ]
@@ -423,7 +260,7 @@
                                         {
                                             "Type": "IfcCartesianPoint",
                                             "Coordinates": [
-                                                10.0,
+                                                15.0,
                                                 -0.5,
                                                 0.0
                                             ]
@@ -431,7 +268,7 @@
                                         {
                                             "Type": "IfcCartesianPoint",
                                             "Coordinates": [
-                                                10.0,
+                                                15.0,
                                                 0.5,
                                                 0.0
                                             ]
@@ -490,11 +327,174 @@
                                     1.0
                                 ]
                             },
-                            "Depth": 10.0
+                            "Depth": 12.0
                         }
                     ]
                 }
             ]
         }
+    },
+    {
+        "Type": "IfcBuilding",
+        "GlobalId": "3umv0IXUWHxw0yCeZ9vErl",
+        "Name": "Building",
+        "ObjectPlacement": {
+            "Type": "IfcLocalPlacement",
+            "PlacementRelTo": {
+                "Type": "IfcLocalPlacement",
+                "RelativePlacement": {
+                    "Type": "IfcAxis2Placement3D",
+                    "Location": {
+                        "Type": "IfcCartesianPoint",
+                        "Coordinates": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ]
+                    },
+                    "Axis": {
+                        "Type": "IfcDirection",
+                        "DirectionRatios": [
+                            0.0,
+                            0.0,
+                            1.0
+                        ]
+                    },
+                    "RefDirection": {
+                        "Type": "IfcDirection",
+                        "DirectionRatios": [
+                            1.0,
+                            0.0,
+                            0.0
+                        ]
+                    }
+                }
+            },
+            "RelativePlacement": {
+                "Type": "IfcAxis2Placement3D",
+                "Location": {
+                    "Type": "IfcCartesianPoint",
+                    "Coordinates": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                "Axis": {
+                    "Type": "IfcDirection",
+                    "DirectionRatios": [
+                        0.0,
+                        0.0,
+                        1.0
+                    ]
+                },
+                "RefDirection": {
+                    "Type": "IfcDirection",
+                    "DirectionRatios": [
+                        1.0,
+                        0.0,
+                        0.0
+                    ]
+                }
+            }
+        },
+        "CompositionType": "ELEMENT"
+    },
+    {
+        "Type": "IfcBuildingStorey",
+        "GlobalId": "0234Y0XUaHxw0yCeZ9vErl",
+        "Name": "Level 1",
+        "ObjectPlacement": {
+            "Type": "IfcLocalPlacement",
+            "PlacementRelTo": {
+                "Type": "IfcLocalPlacement",
+                "PlacementRelTo": {
+                    "Type": "IfcLocalPlacement",
+                    "RelativePlacement": {
+                        "Type": "IfcAxis2Placement3D",
+                        "Location": {
+                            "Type": "IfcCartesianPoint",
+                            "Coordinates": [
+                                0.0,
+                                0.0,
+                                0.0
+                            ]
+                        },
+                        "Axis": {
+                            "Type": "IfcDirection",
+                            "DirectionRatios": [
+                                0.0,
+                                0.0,
+                                1.0
+                            ]
+                        },
+                        "RefDirection": {
+                            "Type": "IfcDirection",
+                            "DirectionRatios": [
+                                1.0,
+                                0.0,
+                                0.0
+                            ]
+                        }
+                    }
+                },
+                "RelativePlacement": {
+                    "Type": "IfcAxis2Placement3D",
+                    "Location": {
+                        "Type": "IfcCartesianPoint",
+                        "Coordinates": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ]
+                    },
+                    "Axis": {
+                        "Type": "IfcDirection",
+                        "DirectionRatios": [
+                            0.0,
+                            0.0,
+                            1.0
+                        ]
+                    },
+                    "RefDirection": {
+                        "Type": "IfcDirection",
+                        "DirectionRatios": [
+                            1.0,
+                            0.0,
+                            0.0
+                        ]
+                    }
+                }
+            },
+            "RelativePlacement": {
+                "Type": "IfcAxis2Placement3D",
+                "Location": {
+                    "Type": "IfcCartesianPoint",
+                    "Coordinates": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                "Axis": {
+                    "Type": "IfcDirection",
+                    "DirectionRatios": [
+                        0.0,
+                        0.0,
+                        1.0
+                    ]
+                },
+                "RefDirection": {
+                    "Type": "IfcDirection",
+                    "DirectionRatios": [
+                        1.0,
+                        0.0,
+                        0.0
+                    ]
+                }
+            }
+        },
+        "CompositionType": "ELEMENT",
+        "Elevation": 0.0
     }
 ]
