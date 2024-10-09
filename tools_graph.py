@@ -1325,6 +1325,12 @@ def create_door(story_n: int = 1, height: float = 1.0, width: float = 1.0, depth
         story = IFC_MODEL.building_story_list[story_n - 1]
         elevation = (story.Elevation)
         points = [(0.0, 0.0, 0.0), (0.0, height, 0.0), (width, height, 0.0), (width, 0.0, 0.0)]
+        context = IFC_MODEL.ifcfile.by_type(
+                "IfcGeometricRepresentationContext")[0]
+        polyline = IFC_MODEL.create_ifcpolyline(
+            [(0.0, 0.0, 0.0), (height, 0.0, 0.0)])
+        axis_rep = IFC_MODEL.ifcfile.createIfcShapeRepresentation(
+            context, "Axis", "Curve2D", [polyline])
         try :
             axis_placement = IFC_MODEL.create_ifcaxis2placement(point=position, dir1=Z, dir2=X)
         except Exception as e:
@@ -1344,8 +1350,12 @@ def create_door(story_n: int = 1, height: float = 1.0, width: float = 1.0, depth
             raise
         print("Local direction made")
         solid = IFC_MODEL.create_ifcextrudedareasolid(point_list=points, ifcaxis2placement=axis_placement, extrude_dir=Z, extrusion=depth)
+        body_rep = IFC_MODEL.ifcfile.createIfcShapeRepresentation(
+            context, "Body", "SweptSolid", [solid])
+        product_shape = IFC_MODEL.ifcfile.createIfcProductDefinitionShape(
+            None, None, [axis_rep, body_rep])
         history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
-        door = IFC_MODEL.ifcfile.createIfcDoor(IFC_MODEL.create_guid(), history, type, operation, None, placement, solid, None, None)
+        door = IFC_MODEL.ifcfile.createIfcDoor(IFC_MODEL.create_guid(), history, type, operation, None, placement, product_shape, None, None)
         IFC_MODEL.add_style_to_product(material, door)
         IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
         ), history, "Building story Container", None, [door], story)
@@ -1393,9 +1403,59 @@ def create_window(story_n: int = 1, height: float = 1.0, width: float = 1.0, dep
             context, "Body", "SweptSolid", [solid])
         product_shape = IFC_MODEL.ifcfile.createIfcProductDefinitionShape(
             None, None, [axis_rep, body_rep])
-        history: ifcopenshell.entity_instance = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
+        history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
+        properties = []
+        if operation == "TRIPLE_PANEL_VERTICAL" :
+            first_mullion = 0.333
+            second_mullion = 0.666
+            first_transom = 0.5
+            second_transom = None
+        elif operation == "TRIPLE_PANEL_HORIZONTAL" :
+            first_transom = 0.333
+            second_transom = 0.666
+            first_mullion = 0.5
+            second_mullion = None
+        else :
+            first_mullion = 0.5
+            first_transom = 0.5
+            second_mullion = None
+            second_transom = None
+        if operation == "DOUBLE_PANEL_VERTICAL" :
+            properties.append(create_panel(history, "FIXEDCASEMENT", "LEFT")) 
+            properties.append(create_panel(history, "FIXEDCASEMENT", "RIGHT"))
+        elif operation == "DOUBLE_PANEL_HORIZONTAL" :
+            properties.append(create_panel(history, "FIXEDCASEMENT", "TOP")) 
+            properties.append(create_panel(history, "FIXEDCASEMENT", "BOTTOM"))
+        elif operation == "TRIPLE_PANEL_VERTICAL" :
+            properties.append(create_panel(history, "FIXEDCASEMENT", "LEFT")) 
+            properties.append(create_panel(history, "FIXEDCASEMENT", "MIDDLE")) 
+            properties.append(create_panel(history, "FIXEDCASEMENT", "RIGHT"))
+        elif operation == "TRIPLE_PANEL_HORIZONTAL" :
+            properties.append(create_panel(history, "FIXEDCASEMENT", "TOP")) 
+            properties.append(create_panel(history, "FIXEDCASEMENT", "MIDDLE")) 
+            properties.append(create_panel(history, "FIXEDCASEMENT", "BOTTOM"))
+        elif operation == "TRIPLE_PANEL_BOTTOM" :
+           properties.append(create_panel(history, "FIXEDCASEMENT", "LEFT")) 
+           properties.append(create_panel(history, "FIXEDCASEMENT", "RIGHT")) 
+           properties.append(create_panel(history, "FIXEDCASEMENT", "BOTTOM"))
+        elif operation == "TRIPLE_PANEL_TOP" :
+            properties.append(create_panel(history, "FIXEDCASEMENT", "TOP")) 
+            properties.append(create_panel(history, "FIXEDCASEMENT", "LEFT")) 
+            properties.append(create_panel(history, "FIXEDCASEMENT", "RIGHT"))
+        elif operation == "TRIPLE_PANEL_LEFT" :
+            properties.append(create_panel(history, "FIXEDCASEMENT", "LEFT")) 
+            properties.append(create_panel(history, "FIXEDCASEMENT", "TOP")) 
+            properties.append(create_panel(history, "FIXEDCASEMENT", "BOTTOM"))
+        elif operation == "TRIPLE_PANEL_RIGHT" :
+            properties.append(create_panel(history, "FIXEDCASEMENT", "TOP")) 
+            properties.append(create_panel(history, "FIXEDCASEMENT", "BOTTOM")) 
+            properties.append(create_panel(history, "FIXEDCASEMENT", "RIGHT"))
+        else :
+            properties.append(create_panel(history, "FIXEDCASEMENT", "MIDDLE"))
+        lining = IFC_MODEL.ifcfile.createIfcWindowLiningProperties(IFC_MODEL.create_guid(), history, None, None, depth, width * 0.05, width * 0.05, height * 0.05, first_transom, second_transom, first_mullion, second_mullion, None)
+        properties.append(lining)
         window = IFC_MODEL.ifcfile.createIfcWindow(IFC_MODEL.create_guid(), history, type, operation, None, placement, product_shape, None, None)
-        style = IFC_MODEL.ifcfile.createIfcWindowStyle(type, operation, True, True)
+        style = IFC_MODEL.ifcfile.createIfcWindowStyle(IFC_MODEL.create_guid(), history, None, None, None, properties, None, None, type, operation, True, True)
         defines = IFC_MODEL.ifcfile.createIfcRelDefinesByType(IFC_MODEL.create_guid(), history, None, None, [window], style)
         IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
         ), history, "Building story Container", None, [window], story)
@@ -1405,3 +1465,5 @@ def create_window(story_n: int = 1, height: float = 1.0, width: float = 1.0, dep
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
+def create_panel(history, operation, position) :
+    return IFC_MODEL.ifcfile.createIfcWindowPanelProperties(IFC_MODEL.create_guid(), history, None, None, operation, position, None, None, None)
