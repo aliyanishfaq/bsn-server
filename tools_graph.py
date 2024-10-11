@@ -1258,7 +1258,11 @@ def refresh_canvas(sid: Annotated[str, InjectedToolArg]) -> bool:
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
+@tool
+def translate_object(sid: Annotated[str, InjectedToolArg], id: str, position: tuple, new_story: int) :
 
+@tool
+def rotate_object(sid: Annotated[str, InjectedToolArg], id: str, x_rotation: float, z_rotation: float)
 
 @tool
 async def step_by_step_planner(sid: Annotated[str, InjectedToolArg], user_request: str) -> str:
