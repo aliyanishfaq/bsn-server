@@ -734,7 +734,7 @@ def create_floor(sid: Annotated[str, InjectedToolArg], story_n: int = 1, point_l
         except Exception as e:
             print(f"Error creating slab boundary: {e}")
             raise
-        if IFC_MODEL.are_points_3d(point_list) :
+        if IFC_MODEL.are_points_3d(point_list=point_list) :
             shape_representation = IFC_MODEL.make_sloped_geometry(point_list, (0.0, 0.0, slab_thickness))
         else :
             # 4. Create points for slab boundary
@@ -886,7 +886,7 @@ def create_roof(sid: Annotated[str, InjectedToolArg], story_n: int = 1, point_li
         except Exception as e:
             print(f"Error setting roof.ObjectPlacement: {e}")
             raise
-        if IFC_MODEL.are_points_3d(point_list) :
+        if IFC_MODEL.are_points_3d(point_list=point_list) :
             shape_representation = IFC_MODEL.make_sloped_geometry(point_list, (0.0, 0.0, roof_thickness))
         else :
             try:
