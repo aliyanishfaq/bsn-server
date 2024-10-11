@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from tools_graph import create_beam, create_column, create_wall, create_session, create_roof, create_building_story, create_floor, search_canvas, delete_objects, create_grid, refresh_canvas, create_isolated_footing, create_strip_footing, create_void_in_wall, step_by_step_planner
+from tools_graph import create_beam, create_column, create_wall, create_session, create_roof, create_building_story, create_floor, search_canvas, delete_objects, create_grid, refresh_canvas, create_isolated_footing, create_strip_footing, create_void_in_wall, step_by_step_planner, translate_object
 from typing import Annotated
 from typing_extensions import TypedDict
 from langgraph.graph import StateGraph, START, END
@@ -143,7 +143,7 @@ def create_agent(llm, tools):
 
 
 tools = [create_beam, create_column, create_wall, create_session, create_roof, create_building_story, create_floor,
-         delete_objects, create_grid, search_canvas, refresh_canvas, create_isolated_footing, create_strip_footing, create_void_in_wall, step_by_step_planner]
+         delete_objects, create_grid, search_canvas, refresh_canvas, create_isolated_footing, create_strip_footing, create_void_in_wall, step_by_step_planner, translate_object]
 llm_with_tools = create_agent(llm, tools)
 
 

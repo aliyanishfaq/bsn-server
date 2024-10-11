@@ -1259,11 +1259,33 @@ def refresh_canvas(sid: Annotated[str, InjectedToolArg]) -> bool:
         print(f"An error occurred: {e}")
         raise
 @tool
-def translate_object(sid: Annotated[str, InjectedToolArg], id: str, position: tuple, new_story: int) :
-
+def translate_object(sid: Annotated[str, InjectedToolArg], id: str, position: tuple) :
+    """
+    A function
+    """
+    try:
+        IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
+        print('[translate_object] IFC_MODEL', IFC_MODEL)
+        if IFC_MODEL is None:
+            print("No IFC model found for the given session.")
+            create_session(sid)
+            IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
+        element = IFC_MODEL.ifcfile.by_guid(id)
+        if element != None:
+            location = IFC_MODEL.ifcfile.createIfcCartesianPoint((position[0] * 1.0, position[1] * 1.0, position[2] * 1.0))
+            placement = IFC_MODEL.ifcfile.createIfcAxis2Placement3D(location, None, None)
+            element.ObjectPlacement = IFC_MODEL.ifcfile.createIfcLocalPlacement(element.ObjectPlacement, placement)
+            return True
+        return False
+    except Exception as e :
+        print(f"An error occurred: {e}")
+        raise
 @tool
-def rotate_object(sid: Annotated[str, InjectedToolArg], id: str, x_rotation: float, z_rotation: float)
-
+def rotate_object(sid: Annotated[str, InjectedToolArg], id: str, x_rotation: float, z_rotation: float) :
+    """
+    Another function
+    """
+    return
 @tool
 async def step_by_step_planner(sid: Annotated[str, InjectedToolArg], user_request: str) -> str:
     """
