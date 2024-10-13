@@ -1275,6 +1275,7 @@ def translate_object(sid: Annotated[str, InjectedToolArg], id: str, position: tu
             location = IFC_MODEL.ifcfile.createIfcCartesianPoint((position[0] * 1.0, position[1] * 1.0, position[2] * 1.0))
             placement = IFC_MODEL.ifcfile.createIfcAxis2Placement3D(location, None, None)
             element.ObjectPlacement = IFC_MODEL.ifcfile.createIfcLocalPlacement(element.ObjectPlacement, placement)
+            IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
             return True
         return False
     except Exception as e :
