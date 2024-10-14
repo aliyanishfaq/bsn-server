@@ -11,6 +11,7 @@ from openai import OpenAI
 import os
 from dotenv import load_dotenv
 import json
+import math
 import numpy as np
 from feature_extractor import IfcEntityFeatureExtractor
 from tool_helpers import format_output_search_canvas
@@ -1282,11 +1283,45 @@ def translate_object(sid: Annotated[str, InjectedToolArg], id: str, position: tu
         print(f"An error occurred: {e}")
         raise
 @tool
-def rotate_object(sid: Annotated[str, InjectedToolArg], id: str, x_rotation: float, z_rotation: float) :
+def rotate_object(sid: Annotated[str, InjectedToolArg], id: str, yaw: float, pitch: float, roll: float) :
     """
     Another function
     """
-    return
+    try:
+        IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
+        print('[translate_object] IFC_MODEL', IFC_MODEL)
+        if IFC_MODEL is None:
+            print("No IFC model found for the given session.")
+            create_session(sid)
+            IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
+        element = IFC_MODEL.ifcfile.by_guid(id)
+        if element != None and element :
+            yaw_sin = math.sin(yaw)
+            yaw_cos = math.cos(yaw)
+            pitch_sin = math.sin(pitch)
+            pitch_cos = math.cos(pitch)
+            roll_sin = math.sin(roll)
+            roll_cos = math.cos(roll)
+            # Rotation matrix adapted from https://en.wikipedia.org/wiki/Rotation_matrix#General_3D_rotations first example
+            rotation_matrix = np.array(
+                [yaw_cos * pitch_cos, yaw_cos * pitch_sin * roll_sin - yaw_sin * roll_cos, yaw_cos * pitch_sin * roll_cos + yaw_sin * roll_sin],
+                [yaw_sin * pitch_cos, yaw_sin * pitch_sin * roll_sin + yaw_cos * roll_cos, yaw_sin * pitch_sin * roll_cos - yaw_cos * roll_sin],
+                [-pitch_sin, pitch_cos * roll_sin, pitch_cos * roll_cos]
+            )
+            placement = ifcopenshell.util.get_local_placement(element.ObjectPlacement)
+            x_vector = np.array([placement[0][0]], [placement[1][0]], [placement[2][0]])
+            z_vector = np.array([placement[0][2]], [placement[1][2]], [placement[2][2]])
+            x_rotated = rotation_matrix * x_vector
+            z_rotated = rotation_matrix * z_vector
+            x_direction = IFC_MODEL.ifcfile.createIfcDirection((x_rotated[0], x_rotated[1], x_rotated[2]))
+            z_direction = IFC_MODEL.ifcfile.createIfcDirection((z_rotated[0], z_rotated[1], z_rotated[2]))
+            element.ObjectPlacement.RelativePlacement = IFC_MODEL.ifcfile.createIfcAxis2Placement3D(element.ObjectPlacement.RelativePlacement.Location, z_direction, x_direction)
+            IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
+            return True
+        return False
+    except Exception as e :
+        print(f"An error occurred: {e}")
+        raise
 @tool
 async def step_by_step_planner(sid: Annotated[str, InjectedToolArg], user_request: str) -> str:
     """
