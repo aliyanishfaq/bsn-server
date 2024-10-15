@@ -1312,12 +1312,16 @@ def rotate_object(sid: Annotated[str, InjectedToolArg], id: str, yaw: float, pit
             placement = ifcopenshell.util.placement.get_local_placement(element.ObjectPlacement)
             x_vector = np.array([[placement[0][0]], [placement[1][0]], [placement[2][0]]])
             z_vector = np.array([[placement[0][2]], [placement[1][2]], [placement[2][2]]])
-            x_rotated = rotation_matrix * x_vector
+            x_rotated = np.dot(rotation_matrix, x_vector)
             print(f"{x_rotated}")
-            z_rotated = rotation_matrix * z_vector
+            z_rotated = np.dot(rotation_matrix, z_vector)
             print(f"{z_rotated}")
-            x_direction = IFC_MODEL.ifcfile.createIfcDirection((x_rotated[0][0] * 1.0, x_rotated[1][0] * 1.0, x_rotated[2][0] * 1.0))
-            z_direction = IFC_MODEL.ifcfile.createIfcDirection((z_rotated[0][0] * 1.0, z_rotated[1][0] * 1.0, z_rotated[2][0] * 1.0))
+            x_rotated.flatten()
+            z_rotated.flatten()
+            x_direction = IFC_MODEL.ifcfile.create_entity("IfcDirection", [(x_rotated[0], x_rotated[1], x_rotated[2])])
+            print("x direction created")
+            z_direction = IFC_MODEL.ifcfile.createIfcDirection((z_rotated[0], z_rotated[1], z_rotated[2]))
+            print("z direction created")
             element.ObjectPlacement.RelativePlacement = IFC_MODEL.ifcfile.createIfcAxis2Placement3D(element.ObjectPlacement.RelativePlacement.Location, z_direction, x_direction)
             IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
             return True
