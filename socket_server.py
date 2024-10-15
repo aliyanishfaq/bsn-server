@@ -28,7 +28,6 @@ async def disconnect(sid):
         print(f"Directory not found: {directory_path}")
 
 
-
 @sio.event
 async def modelLoaded(sid):
     print("Model loaded")
@@ -37,12 +36,13 @@ async def modelLoaded(sid):
 # receives data on the user position and shares that information with other users
 @sio.event
 async def userPosition(sid, data):
+    # print("position: ", data)
     pass
-    #print('User position updated: ', data)
+    # print('User position updated: ', data)
 
     # Broadcast updated positions to all users except the sender
     # disabled for now
-    #await sio.emit('userPosition', data, skip_sid=sid)
+    # await sio.emit('userPosition', data, skip_sid=sid)
 
 
 async def start():

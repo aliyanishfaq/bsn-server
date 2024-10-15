@@ -7,6 +7,11 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langchain_anthropic import ChatAnthropic
 from langchain_openai import ChatOpenAI
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import UnstructuredMarkdownLoader
+from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
+from langchain_core.runnables import RunnablePassthrough
 from langchain_core.messages import (
     BaseMessage, HumanMessage, ToolMessage, AIMessage)
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -39,6 +44,8 @@ Y = 0., 1., 0.
 Z = 0., 0., 1.
 
 # State definition
+
+
 class State(TypedDict):
     messages: Annotated[list, add_messages]
 
@@ -119,6 +126,26 @@ flattened_examples = []
 for key, value in examples.items():
     flattened_examples.extend(value)
 
+MARKDOWN_PATH = "./formatted_materials_guide.md"
+
+# Loading document for RAG
+loader = UnstructuredMarkdownLoader(MARKDOWN_PATH, mode="elements")
+docs = loader.load()
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1000, chunk_overlap=200, add_start_index=True
+)
+for doc in docs:
+    for md in doc.metadata:
+        doc.metadata[md] = str(doc.metadata[md])
+all_splits = text_splitter.split_documents(docs)
+vectorstore = Chroma.from_documents(
+    documents=all_splits, embedding=OpenAIEmbeddings())
+retriever = vectorstore.as_retriever()
+
+
+def format_docs(docs):
+    return "\n\n".join(doc.page_content for doc in docs)
+
 
 def create_agent(llm, tools):
     """Create an agent."""
@@ -139,7 +166,7 @@ def create_agent(llm, tools):
     )
     prompt = prompt.partial(tool_names=", ".join(
         [tool.name for tool in tools]))
-    return prompt | llm.bind_tools(tools)
+    return {"context": retriever | format_docs, "question": RunnablePassthrough()} | prompt | llm.bind_tools(tools)
 
 
 tools = [create_beam, create_column, create_wall, create_session, create_roof, create_building_story, create_floor,
@@ -198,6 +225,7 @@ buildsync_graph_builder.add_conditional_edges(
 # memory = AsyncSqliteSaver.from_conn_string(":memory:", )
 memory = MemorySaver()
 graph = buildsync_graph_builder.compile(checkpointer=memory)
+
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=15))
 async def stream_with_backoff(sid: str, data: dict, config: dict):
@@ -272,7 +300,7 @@ async def stream_with_backoff(sid: str, data: dict, config: dict):
         yield event
 
 
-async def model_streamer(sid, data: dict, unique_hash: str, curHighlightedObjects: dict=None):
+async def model_streamer(sid, data: dict, unique_hash: str, curHighlightedObjects: dict = None):
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
@@ -284,10 +312,13 @@ async def model_streamer(sid, data: dict, unique_hash: str, curHighlightedObject
         selected_objects_ids = list(curHighlightedObjects.values())
         element_characteristics_prompt = "The user has selected the following object(s). Use them in context in responding to user query: \n"
         for object_id in selected_objects_ids:
-            element_characteristics_prompt += get_element_characteristics(sid, object_id[0])
-        print('[model_streamer] element_characteristics_prompt', element_characteristics_prompt)
-        data['message'] = element_characteristics_prompt + "\n\nUSER QUERY: " + data['message']
-    
+            element_characteristics_prompt += get_element_characteristics(
+                sid, object_id[0])
+        print('[model_streamer] element_characteristics_prompt',
+              element_characteristics_prompt)
+        data['message'] = element_characteristics_prompt + \
+            "\n\nUSER QUERY: " + data['message']
+
     async for event in stream_with_backoff(sid, data, config):
         kind = event['event']
         # print(kind)
