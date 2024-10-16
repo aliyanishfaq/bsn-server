@@ -25,7 +25,7 @@ import re
 # Constants
 os.environ["LANGCHAIN_PROJECT"] = "BuildSync Agent v1.0"
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
-ANTRHOPIC_API_KEY = os.getenv('ANTRHOPIC_API_KEY')
+ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 LANGSMITH_API_KEY = os.getenv('LANGSMITH_API_KEY')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 MODEL_TYPE = 'CLAUDE'
@@ -45,7 +45,7 @@ class State(TypedDict):
 buildsync_graph_builder = StateGraph(State)
 # model to be used in production: claude-3-5-sonnet-20240620 cheaper option: claude-3-haiku-20240307
 llm = ChatAnthropic(model='claude-3-5-sonnet-20240620',
-                    streaming=True, verbose=True, api_key=ANTRHOPIC_API_KEY)
+                    streaming=True, verbose=True, api_key=ANTHROPIC_API_KEY)
 # llm = ChatOpenAI(model='gpt-4o', streaming=True, verbose=True, api_key=OPENAI_API_KEY)
 
 # examples
@@ -253,9 +253,9 @@ async def model_streamer(sid, data: dict, unique_hash: str):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     tools_end = False
+    print("[model_streamer]data", data)
     async for event in stream_with_backoff(data, config):
         kind = event['event']
-        # print(kind)
         if kind == 'on_chat_model_stream':
             try:
                 # print
@@ -287,8 +287,6 @@ async def model_streamer(sid, data: dict, unique_hash: str):
                 await sio.emit('toolEnd', {'word': message, 'hash': unique_hash})
             else:
                 message = f"{event.get('name')} execution failed"
-            print("emitting fileChange")
-            print("SID: ", sid)
             fileContent = open('public/canvas.ifc', 'rb').read()
             filePath = 'public/canvas.ifc'
             await sio.emit('fileChange', {'userId': 'BuildSync', 'message': 'A new change has been made to the file', 'file_name': 'public/canvas.ifc', 'file_content': fileContent})

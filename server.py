@@ -139,7 +139,7 @@ async def userAction(sid, data):
             # Emit the aiActionStart event with the unique hash
             await sio.emit('aiActionStart', {'hash':  unique_hash})
             # Call the model_streamer function with the data and unique hash
-            await model_streamer(str(data), unique_hash)
+            await model_streamer(sid, data, unique_hash)
             # Emit the aiActionEnd event with the unique hash
             await sio.emit('aiActionEnd', {'hash': unique_hash})
         else:
@@ -155,7 +155,7 @@ async def userAction(sid, data):
             # Emit the aiActionStart event with the unique hash
             await sio.emit('aiActionStart', {'hash':  unique_hash})
             # Call the model_streamer function with the data and unique hash
-            await model_streamer(sid, str(data), unique_hash)
+            await model_streamer(sid, data, unique_hash)
             # Emit the aiActionEnd event with the unique hash
             await sio.emit('aiActionEnd', {'hash': unique_hash})
 

@@ -50,7 +50,7 @@ class IfcModel:
             ), self.owner_history, "Building", None, None, self.building_placement, None, None, "ELEMENT", None, None, None)
             self.story_placement = self.create_ifclocalplacement(
                 relative_to=self.building_placement)
-            self.building_story_list = []
+            self.building_storey_list = []
 
             # 3. Create the world coordinate system.
             WorldCoordinateSystem = self.ifcfile.createIfcAxis2Placement3D()
@@ -205,7 +205,7 @@ class IfcModel:
         return ifcextrudedareasolid
 
     
-    def create_building_stories(self, elevation, name):
+    def create_building_storeys(self, elevation, name):
         """
         Adds a story to the building based on elevation and the name.
 
@@ -219,7 +219,7 @@ class IfcModel:
         # 2. Creates the story and adds it to the list of storys.
         building_story = self.ifcfile.createIfcBuildingStorey(self.create_guid(), self.owner_history, str(
             name), None, None, story_placement, None, None, "ELEMENT", float(elevation))
-        self.building_story_list.append(building_story)
+        self.building_storey_list.append(building_story)
 
     
     def create_wall(self, context, owner_history, wall_placement, length, height, thickness):
