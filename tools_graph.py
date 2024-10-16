@@ -1331,6 +1331,13 @@ def create_window(sid: Annotated[str, InjectedToolArg], story_n: int = 1, height
             [(0.0, 0.0, 0.0), (height, 0.0, 0.0)])
         axis_rep = IFC_MODEL.ifcfile.createIfcShapeRepresentation(
             context, "Axis", "Curve2D", [polyline])
+        walls = ifcopenshell.util.selector.filter_elements(IFC_MODEL.ifcfile, f'IfcWall, location="Level {story_n}"')
+        for wall in walls :
+            try :
+                IFC_MODEL.create_void_in_wall(wall, height, width, depth, position)
+                break
+            except Exception as e :
+                continue
         points = [(0.0, 0.0, 0.0), (0.0, depth, 0.0), (width, depth, 0.0), (width, 0.0, 0.0)]
         try :
             axis_placement = IFC_MODEL.create_ifcaxis2placement(point=position, dir1=Z, dir2=X)
@@ -1370,37 +1377,37 @@ def create_window(sid: Annotated[str, InjectedToolArg], story_n: int = 1, height
             second_mullion = None
             second_transom = None
         if operation == "DOUBLE_PANEL_VERTICAL" :
-            properties.append(create_panel(history, "FIXEDCASEMENT", "LEFT")) 
-            properties.append(create_panel(history, "FIXEDCASEMENT", "RIGHT"))
+            properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "LEFT")) 
+            properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "RIGHT"))
         elif operation == "DOUBLE_PANEL_HORIZONTAL" :
-            properties.append(create_panel(history, "FIXEDCASEMENT", "TOP")) 
-            properties.append(create_panel(history, "FIXEDCASEMENT", "BOTTOM"))
+            properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "TOP")) 
+            properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "BOTTOM"))
         elif operation == "TRIPLE_PANEL_VERTICAL" :
-            properties.append(create_panel(history, "FIXEDCASEMENT", "LEFT")) 
-            properties.append(create_panel(history, "FIXEDCASEMENT", "MIDDLE")) 
-            properties.append(create_panel(history, "FIXEDCASEMENT", "RIGHT"))
+            properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "LEFT")) 
+            properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "MIDDLE")) 
+            properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "RIGHT"))
         elif operation == "TRIPLE_PANEL_HORIZONTAL" :
-            properties.append(create_panel(history, "FIXEDCASEMENT", "TOP")) 
-            properties.append(create_panel(history, "FIXEDCASEMENT", "MIDDLE")) 
-            properties.append(create_panel(history, "FIXEDCASEMENT", "BOTTOM"))
+            properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "TOP")) 
+            properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "MIDDLE")) 
+            properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "BOTTOM"))
         elif operation == "TRIPLE_PANEL_BOTTOM" :
-           properties.append(create_panel(history, "FIXEDCASEMENT", "LEFT")) 
-           properties.append(create_panel(history, "FIXEDCASEMENT", "RIGHT")) 
-           properties.append(create_panel(history, "FIXEDCASEMENT", "BOTTOM"))
+           properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "LEFT")) 
+           properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "RIGHT")) 
+           properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "BOTTOM"))
         elif operation == "TRIPLE_PANEL_TOP" :
-            properties.append(create_panel(history, "FIXEDCASEMENT", "TOP")) 
-            properties.append(create_panel(history, "FIXEDCASEMENT", "LEFT")) 
-            properties.append(create_panel(history, "FIXEDCASEMENT", "RIGHT"))
+            properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "TOP")) 
+            properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "LEFT")) 
+            properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "RIGHT"))
         elif operation == "TRIPLE_PANEL_LEFT" :
-            properties.append(create_panel(history, "FIXEDCASEMENT", "LEFT")) 
-            properties.append(create_panel(history, "FIXEDCASEMENT", "TOP")) 
-            properties.append(create_panel(history, "FIXEDCASEMENT", "BOTTOM"))
+            properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "LEFT")) 
+            properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "TOP")) 
+            properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "BOTTOM"))
         elif operation == "TRIPLE_PANEL_RIGHT" :
-            properties.append(create_panel(history, "FIXEDCASEMENT", "TOP")) 
-            properties.append(create_panel(history, "FIXEDCASEMENT", "BOTTOM")) 
-            properties.append(create_panel(history, "FIXEDCASEMENT", "RIGHT"))
+            properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "TOP")) 
+            properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "BOTTOM")) 
+            properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "RIGHT"))
         else :
-            properties.append(create_panel(history, "FIXEDCASEMENT", "MIDDLE"))
+            properties.append(create_panel(IFC_MODEL, history, "FIXEDCASEMENT", "MIDDLE"))
         lining = IFC_MODEL.ifcfile.createIfcWindowLiningProperties(IFC_MODEL.create_guid(), history, None, None, depth, width * 0.05, width * 0.05, height * 0.05, first_transom, second_transom, first_mullion, second_mullion, None)
         properties.append(lining)
         window = IFC_MODEL.ifcfile.createIfcWindow(IFC_MODEL.create_guid(), history, type, operation, None, placement, product_shape, None, None)
