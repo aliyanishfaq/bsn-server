@@ -1261,7 +1261,7 @@ def create_door(sid: Annotated[str, InjectedToolArg], story_n: int = 1, height: 
             IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
         story = IFC_MODEL.building_story_list[story_n - 1]
         elevation = (story.Elevation)
-        points = [(0.0, 0.0, 0.0), (0.0, height, 0.0), (width, height, 0.0), (width, 0.0, 0.0)]
+        points = [(0.0, 0.0, 0.0), (0.0, depth, 0.0), (width, depth, 0.0), (width, 0.0, 0.0)]
         context = IFC_MODEL.ifcfile.by_type(
                 "IfcGeometricRepresentationContext")[0]
         polyline = IFC_MODEL.create_ifcpolyline(
@@ -1293,7 +1293,7 @@ def create_door(sid: Annotated[str, InjectedToolArg], story_n: int = 1, height: 
             print(f"Direction creation failed: {e}")
             raise
         print("Local direction made")
-        solid = IFC_MODEL.create_ifcextrudedareasolid(point_list=points, ifcaxis2placement=axis_placement, extrude_dir=Z, extrusion=depth)
+        solid = IFC_MODEL.create_ifcextrudedareasolid(point_list=points, ifcaxis2placement=axis_placement, extrude_dir=Z, extrusion=height)
         body_rep = IFC_MODEL.ifcfile.createIfcShapeRepresentation(
             context, "Body", "SweptSolid", [solid])
         product_shape = IFC_MODEL.ifcfile.createIfcProductDefinitionShape(
