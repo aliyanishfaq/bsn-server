@@ -1246,7 +1246,7 @@ def delete_objects(sid: Annotated[str, InjectedToolArg], delete_query: str) -> b
     return False
 
 @tool
-def create_door(sid: Annotated[str, InjectedToolArg], story_n: int = 1, height: float = 1.0, width: float = 1.0, depth: float = 1.0, position: tuple = (0.0, 0.0, 0.0), type: str = "DOOR", operation: str = "DOUBLE", material: str = "Wood") :
+def create_door(sid: Annotated[str, InjectedToolArg], story_n: int = 1, height: float = 1.0, width: float = 1.0, depth: float = 1.0, position: tuple = (0.0, 0.0, 0.0), type: str = "ALUMINIUM", operation: str = "SINGLE_SWING_LEFT", material: str = "Wood") :
     """
     Create and return a door baed on passed in parameters
     """
@@ -1273,6 +1273,7 @@ def create_door(sid: Annotated[str, InjectedToolArg], story_n: int = 1, height: 
         for wall in walls :
             try :
                 IFC_MODEL.create_void_in_wall(wall, height, width, depth, position)
+                print("Void created")
                 break
             except Exception as e :
                 continue
@@ -1300,6 +1301,7 @@ def create_door(sid: Annotated[str, InjectedToolArg], story_n: int = 1, height: 
         product_shape = IFC_MODEL.ifcfile.createIfcProductDefinitionShape(
             None, None, [axis_rep, body_rep])
         history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
+        style = IFC_MODEL.ifcfile.createIfcDoorStyle(IFC_MODEL.create_guid(), history, None, None, None, properties, None, None, type, operation, True, True)
         door = IFC_MODEL.ifcfile.createIfcDoor(IFC_MODEL.create_guid(), history, type, operation, None, placement, product_shape, None, None)
         IFC_MODEL.add_style_to_product(material, door)
         IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
