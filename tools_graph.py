@@ -3,6 +3,7 @@ from langchain_core.tools import tool, InjectedToolArg
 from typing_extensions import Annotated
 import ifcopenshell
 import ifcopenshell.api
+import ifcopenshell.api.geometry.edit_object_placement
 import ifcopenshell.util.placement
 from ifcopenshell.api import run
 import asyncio
@@ -1296,7 +1297,7 @@ def rotate_object(sid: Annotated[str, InjectedToolArg], id: str, yaw: float, pit
             create_session(sid)
             IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
         element = IFC_MODEL.ifcfile.by_guid(id)
-        if element != None and element :
+        if element != None :
             yaw_sin = math.sin(yaw)
             yaw_cos = math.cos(yaw)
             pitch_sin = math.sin(pitch)
@@ -1311,18 +1312,27 @@ def rotate_object(sid: Annotated[str, InjectedToolArg], id: str, yaw: float, pit
             ])
             placement = ifcopenshell.util.placement.get_local_placement(element.ObjectPlacement)
             x_vector = np.array([[placement[0][0]], [placement[1][0]], [placement[2][0]]])
+            y_vector = np.array([[placement[0][1]], [placement[1][1]], [placement[2][1]]])
             z_vector = np.array([[placement[0][2]], [placement[1][2]], [placement[2][2]]])
+            point = np.array([[placement[0][3]], [placement[1][3]], [placement[2][3]]])
             x_rotated = np.dot(rotation_matrix, x_vector)
             print(f"{x_rotated}")
+            y_rotated = np.dot(rotation_matrix, y_vector)
             z_rotated = np.dot(rotation_matrix, z_vector)
+            point_rotated = np.dot(rotation_matrix, point)
             print(f"{z_rotated}")
             x_rotated.flatten()
+            y_rotated.flatten()
             z_rotated.flatten()
-            x_direction = IFC_MODEL.ifcfile.create_entity("IfcDirection", [(x_rotated[0], x_rotated[1], x_rotated[2])])
-            print("x direction created")
-            z_direction = IFC_MODEL.ifcfile.createIfcDirection((z_rotated[0], z_rotated[1], z_rotated[2]))
+            point_rotated.flatten()
+            new_placement = np.array([
+                    [x_rotated[0], y_rotated[0], z_rotated[0], point_rotated[0]],
+                    [x_rotated[1], y_rotated[1], z_rotated[1], point_rotated[1]],
+                    [x_rotated[2], y_rotated[2], z_rotated[2], point_rotated[2]],
+                    [0., 0., 0., 1.]], 
+                dtype=float)
             print("z direction created")
-            element.ObjectPlacement.RelativePlacement = IFC_MODEL.ifcfile.createIfcAxis2Placement3D(element.ObjectPlacement.RelativePlacement.Location, z_direction, x_direction)
+            ifcopenshell.api.geometry.edit_object_placement.edit_object_placement(IFC_MODEL.ifcfile, pelement, new_placement, False, True)
             IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
             return True
         return False
