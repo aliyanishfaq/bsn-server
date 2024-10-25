@@ -45,7 +45,7 @@ class State(TypedDict):
 
 buildsync_graph_builder = StateGraph(State)
 # model to be used in production: claude-3-5-sonnet-20240620 cheaper option: claude-3-haiku-20240307
-llm = ChatAnthropic(model='claude-3-5-sonnet-20240620',
+llm = ChatAnthropic(model='claude-3-5-sonnet-20241022',
                     streaming=True, verbose=True, api_key=ANTHROPIC_API_KEY)
 # llm = ChatOpenAI(model='gpt-4o', streaming=True, verbose=True, api_key=OPENAI_API_KEY)
 
