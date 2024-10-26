@@ -171,16 +171,17 @@ def route_tools(state: State) -> Literal["tools", "__end__"]:
     else:
         raise ValueError(
             f"No messages found in input state to tool_edge: {state}")
-    # print(ai_message.content)
-    print('ai_message.content[0]', ai_message.content[0])
-    if hasattr(ai_message.content[0], "text"):
-        content = ai_message.content[0]["text"]
-    else:
-        content = ""
-    if hasattr(ai_message, "tool_calls") and len(ai_message.tool_calls) > 0:
-        return "tools"
-    elif "invoked" in content.lower() and len(ai_message.tool_calls) == 0:  # if the tools weren't actually called
-        return "tools"
+    print('[agent_graph][route_tools] ai_message', ai_message)
+
+    if ai_message.content:
+        if hasattr(ai_message.content[0], "text"):
+            content = ai_message.content[0]["text"]
+        else:
+            content = ""
+        if hasattr(ai_message, "tool_calls") and len(ai_message.tool_calls) > 0:
+            return "tools"
+        elif "invoked" in content.lower() and len(ai_message.tool_calls) == 0:  # if the tools weren't actually called
+            return "tools"
     return "__end__"
 
 
