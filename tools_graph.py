@@ -630,6 +630,11 @@ def create_void_in_wall(sid: Annotated[str, InjectedToolArg], host_wall_id=None,
 
         print(
             f"host_wall_id: {host_wall_id}, width: {width}, height: {height}, depth: {depth}, void_location: {void_location}")
+        # Convert all parameters to float
+        width = float(width)
+        height = float(height)
+        depth = float(depth)
+        void_location = tuple(float(coord) for coord in void_location)
         # Retrieve wall with element ID
         walls = IFC_MODEL.ifcfile.by_type("IfcWall")
         print("All of the walls: ", walls)

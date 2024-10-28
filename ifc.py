@@ -212,6 +212,8 @@ class IfcModel:
         - dir2: the second 3D directional vector. Defaults to the x-unit vector.
         - relative_to: the place which this is all in relation to. Defaults to none.
         """
+        # print(f"""create_ifclocalplacement: trying to create axis2placement: point={point} (type: {type(point)}), dir1={dir1} (type: {
+        #       type(dir1)}), dir2={dir2} (type: {type(dir2)}), relative_to={relative_to} (type: {type(relative_to)})""")
         # 1. Create the placement without relation to anything else.
         axis2placement = self.create_ifcaxis2placement(point, dir1, dir2)
         # 2. Add the point to this is in relation to and returns it.
@@ -547,7 +549,6 @@ class IfcModel:
             # pdb.set_trace()
             wall_placement = wall.ObjectPlacement  # Get wall placement
             wall_storey = ifcopenshell.util.element.get_container(wall)
-            print(f"Wall Storey: {wall_storey}")
             if not wall_storey:
                 print("Cannot find wall_storey")
                 raise ValueError
