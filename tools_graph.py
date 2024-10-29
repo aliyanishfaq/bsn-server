@@ -71,28 +71,30 @@ def create_session(sid: Annotated[str, InjectedToolArg]) -> bool:
     """
     # 1. Tries to make the session.
     try:
-        # 2. Writes info in the IFC model.
-        print('Creating a new IFC model for session', sid)
-        ifc_model = IfcModel(
-            creator="Aliyan",
-            organization="BuildSync",
-            application="IfcOpenShell",
-            application_version="0.5",
-            project_name="Modular IFC Project",
-            filename=None
-        )
-        global_store.sid_to_ifc_model[sid] = ifc_model
-        ifc_model.save_ifc(f"public/{sid}/canvas.ifc")
-        return True
+        session_create(sid)
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
-
+@tool
+def session_create(sid: str) -> bool :
+    # 2. Writes info in the IFC model.
+    print('Creating a new IFC model for session', sid)
+    ifc_model = IfcModel(
+        creator="Aliyan",
+        organization="BuildSync",
+        application="IfcOpenShell",
+        application_version="0.5",
+        project_name="Modular IFC Project",
+        filename=None
+    )
+    global_store.sid_to_ifc_model[sid] = ifc_model
+    ifc_model.save_ifc(f"public/{sid}/canvas.ifc")
+    return True
 
 @tool
 def create_building_story(sid: Annotated[str, InjectedToolArg], elevation: float = 0.0, name: str = "Level 1") -> bool:
     """
-    Creates building stories with the specified amount, elevation, and height.
+    Creates building stories at the specified elevation.
 
     Parameters:
     - elevation (float): The elevation of the building stories in feet. If there are already stories been created, then this is the elevation of the tallest building story
@@ -105,10 +107,13 @@ def create_building_story(sid: Annotated[str, InjectedToolArg], elevation: float
         print("No IFC model found for the given session.")
         create_session(sid)
         IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
+    return create_story(sid, IFC_MODEL, elevation, name)
+
+def create_story(sid: str, model: IfcModel, elevation: float, name: str) :
     try:
         # 1. Create the building story
-        IFC_MODEL.create_building_stories(elevation, name)
-        IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
+        model.create_building_stories(elevation, name)
+        model.save_ifc(f"public/{sid}/canvas.ifc")
 
         # 2. Update the global dictionary
         levels_dict[name] = elevation
@@ -117,7 +122,6 @@ def create_building_story(sid: Annotated[str, InjectedToolArg], elevation: float
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
-
 
 @tool
 def create_beam(sid: Annotated[str, InjectedToolArg], start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_name: str = 'W16X40', story_n: int = 1, material: str = None,) -> None:
@@ -139,7 +143,12 @@ def create_beam(sid: Annotated[str, InjectedToolArg], start_coord: str = "0,0,0"
             print("No IFC model found for the given session.")
             create_session(sid)
             IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
-        # 1. Format coord and direction
+        return beam_create(sid, IFC_MODEL, start_coord, end_coord, section_name, story_n, material)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        raise
+def beam_create(sid: str, IFC_MODEL: IfcModel, start_coord: str = "0,0,0", end_coord: str = "1,0,0", section_name: str = 'W16X40', story_n: int = 1, material: str = None,) :
+    # 1. Format coord and direction
         start_coord = tuple(map(float, start_coord.split(',')))
         end_coord = tuple(map(float, end_coord.split(',')))
 
@@ -212,11 +221,6 @@ def create_beam(sid: Annotated[str, InjectedToolArg], start_coord: str = "0,0,0"
 
         IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
         return True
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        raise
-
-
 @tool
 def create_column(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_coord: str = "0,0,0", height: float = 30, section_name: str = "W12X53", material: str = None) -> bool:
     """
@@ -296,138 +300,141 @@ def create_grid(sid: Annotated[str, InjectedToolArg], grids_x_distance_between: 
             create_session(sid)
             IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
 
-        grids_x_dictionary = OrderedDict()
-        grids_y_dictionary = OrderedDict()
-
-        x = -float(grids_x_distance_between)
-        y = -float(grids_y_distance_between)
-
-        for x_grids in range(0, int(grids_x_direction_amount), 1):
-            x += float(grids_x_distance_between)
-            grids_x_dictionary[x_grids] = x
-            print(f"X Grid {x_grids}: {x}")
-
-        for y_grids in range(0, int(grids_y_direction_amount), 1):
-            y += grids_y_distance_between
-            grids_y_dictionary[y_grids] = y
-            print(f"Y Grid {y_grids}: {y}")
-
-        x_min = list(grids_x_dictionary.items())[0][1]
-        x_max = list(grids_x_dictionary.items())[-1][1]
-
-        y_min = list(grids_y_dictionary.items())[0][1]
-        y_max = list(grids_y_dictionary.items())[-1][1]
-
-        x_min_overlap = x_min-grid_extends
-        x_max_overlap = x_max+grid_extends
-
-        y_min_overlap = y_min-grid_extends
-        y_max_overlap = y_max+grid_extends
-
-        print(
-            f"x_min: {x_min}, x_max: {x_max}, y_min: {y_min}, y_max: {y_max}")
-        print(
-            f"x_min_overlap: {x_min_overlap}, x_max_overlap: {x_max_overlap}, y_min_overlap: {y_min_overlap}, y_max_overlap: {y_max_overlap}")
-
-        polylineSet = []
-        gridX = []
-        gridY = []
-
-        for i_grid in grids_x_dictionary.items():
-            print(f"Creating X grid line at {i_grid[1]}")
-
-            point_1 = IFC_MODEL.ifcfile.createIfcCartesianPoint(
-                (i_grid[1], y_min_overlap))
-            point_2 = IFC_MODEL.ifcfile.createIfcCartesianPoint(
-                (i_grid[1], y_max_overlap))
-
-            Line = IFC_MODEL.ifcfile.createIfcPolyline([point_1, point_2])
-            polylineSet.append(Line)
-
-            grid = IFC_MODEL.ifcfile.createIfcGridAxis()
-            grid.AxisTag = str(i_grid[0]) + "X"
-            grid.AxisCurve = Line
-            grid.SameSense = True
-            gridX.append(grid)
-
-        for i_grid in grids_y_dictionary.items():
-            print(f"Creating Y grid line at {i_grid[1]}")
-
-            point_1 = IFC_MODEL.ifcfile.createIfcCartesianPoint(
-                (x_min_overlap, i_grid[1]))
-            point_2 = IFC_MODEL.ifcfile.createIfcCartesianPoint(
-                (x_max_overlap, i_grid[1]))
-
-            Line = IFC_MODEL.ifcfile.createIfcPolyline([point_1, point_2])
-            polylineSet.append(Line)
-
-            grid = IFC_MODEL.ifcfile.createIfcGridAxis()
-            grid.AxisTag = str(i_grid[0]) + "Y"
-            grid.AxisCurve = Line
-            grid.SameSense = True
-            gridY.append(grid)
-
-        print(f"polylineSet: {polylineSet}")
-        print(f"gridX: {gridX}")
-        print(f"gridY: {gridY}")
-
-        # Defining the grid
-        PntGrid = IFC_MODEL.ifcfile.createIfcCartesianPoint(O)
-
-        myGridCoordinateSystem = IFC_MODEL.ifcfile.createIfcAxis2Placement3D()
-        myGridCoordinateSystem.Location = PntGrid
-        myGridCoordinateSystem.Axis = IFC_MODEL.ifcfile.createIfcDirection(Z)
-        myGridCoordinateSystem.RefDirection = IFC_MODEL.ifcfile.createIfcDirection(
-            X)
-
-        grid_placement = IFC_MODEL.ifcfile.createIfcLocalPlacement()
-        print(f"IFC story PLACEMENT: {IFC_MODEL.story_placement}")
-        grid_placement.PlacementRelTo = IFC_MODEL.story_placement
-        grid_placement.RelativePlacement = myGridCoordinateSystem
-
-        print(f"Grid Placement: {grid_placement}")
-
-        grid_curvedSet = IFC_MODEL.ifcfile.createIfcGeometricCurveSet(
-            polylineSet)
-
-        print("Creating grid shape representation...")
-        gridShape_Reppresentation = IFC_MODEL.ifcfile.createIfcShapeRepresentation()
-        gridShape_Reppresentation.ContextOfItems = IFC_MODEL.footprint_context
-        gridShape_Reppresentation.RepresentationIdentifier = 'FootPrint'
-        gridShape_Reppresentation.RepresentationType = 'GeometricCurveSet'
-        gridShape_Reppresentation.Items = [grid_curvedSet]
-        print(f"Grid Shape Representation: {gridShape_Reppresentation}")
-
-        print("Creating grid product definition shape...")
-        grid_Representation = IFC_MODEL.ifcfile.createIfcProductDefinitionShape()
-        grid_Representation.Representations = [gridShape_Reppresentation]
-        print(f"Grid Product Definition Shape: {grid_Representation}")
-
-        print("Creating grid...")
-        myGrid = IFC_MODEL.ifcfile.createIfcGrid(
-            IFC_MODEL.create_guid(), IFC_MODEL.owner_history)
-        myGrid.ObjectPlacement = grid_placement
-        myGrid.Representation = grid_Representation
-        myGrid.UAxes = gridX
-        myGrid.VAxes = gridY
-        print(f"Grid: {myGrid}")
-
-        print("Creating container spatial structure...")
-        container_SpatialStructure = IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(
-            IFC_MODEL.create_guid(), IFC_MODEL.owner_history)
-        container_SpatialStructure.Name = 'BuildingstoryContainer'
-        container_SpatialStructure.Description = 'BuildingstoryContainer for Elements'
-        container_SpatialStructure.RelatingStructure = IFC_MODEL.site
-        container_SpatialStructure.RelatedElements = [myGrid]
-        print(f"Container Spatial Structure: {container_SpatialStructure}")
-
-        print("Grid creation completed.")
-
-        IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
-        return True
+        return grid_create(sid, grids_x_distance_between, grids_y_distance_between, grids_x_direction_amount, grids_y_direction_amount, grid_extends, IFC_MODEL)
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
+
+def grid_create(sid, grids_x_distance_between, grids_y_distance_between, grids_x_direction_amount, grids_y_direction_amount, grid_extends, IFC_MODEL):
+    grids_x_dictionary = OrderedDict()
+    grids_y_dictionary = OrderedDict()
+
+    x = -float(grids_x_distance_between)
+    y = -float(grids_y_distance_between)
+
+    for x_grids in range(0, int(grids_x_direction_amount), 1):
+        x += float(grids_x_distance_between)
+        grids_x_dictionary[x_grids] = x
+        print(f"X Grid {x_grids}: {x}")
+
+    for y_grids in range(0, int(grids_y_direction_amount), 1):
+        y += grids_y_distance_between
+        grids_y_dictionary[y_grids] = y
+        print(f"Y Grid {y_grids}: {y}")
+
+    x_min = list(grids_x_dictionary.items())[0][1]
+    x_max = list(grids_x_dictionary.items())[-1][1]
+
+    y_min = list(grids_y_dictionary.items())[0][1]
+    y_max = list(grids_y_dictionary.items())[-1][1]
+
+    x_min_overlap = x_min-grid_extends
+    x_max_overlap = x_max+grid_extends
+
+    y_min_overlap = y_min-grid_extends
+    y_max_overlap = y_max+grid_extends
+
+    print(
+            f"x_min: {x_min}, x_max: {x_max}, y_min: {y_min}, y_max: {y_max}")
+    print(
+            f"x_min_overlap: {x_min_overlap}, x_max_overlap: {x_max_overlap}, y_min_overlap: {y_min_overlap}, y_max_overlap: {y_max_overlap}")
+
+    polylineSet = []
+    gridX = []
+    gridY = []
+
+    for i_grid in grids_x_dictionary.items():
+        print(f"Creating X grid line at {i_grid[1]}")
+
+        point_1 = IFC_MODEL.ifcfile.createIfcCartesianPoint(
+                (i_grid[1], y_min_overlap))
+        point_2 = IFC_MODEL.ifcfile.createIfcCartesianPoint(
+                (i_grid[1], y_max_overlap))
+
+        Line = IFC_MODEL.ifcfile.createIfcPolyline([point_1, point_2])
+        polylineSet.append(Line)
+
+        grid = IFC_MODEL.ifcfile.createIfcGridAxis()
+        grid.AxisTag = str(i_grid[0]) + "X"
+        grid.AxisCurve = Line
+        grid.SameSense = True
+        gridX.append(grid)
+
+    for i_grid in grids_y_dictionary.items():
+        print(f"Creating Y grid line at {i_grid[1]}")
+
+        point_1 = IFC_MODEL.ifcfile.createIfcCartesianPoint(
+                (x_min_overlap, i_grid[1]))
+        point_2 = IFC_MODEL.ifcfile.createIfcCartesianPoint(
+                (x_max_overlap, i_grid[1]))
+
+        Line = IFC_MODEL.ifcfile.createIfcPolyline([point_1, point_2])
+        polylineSet.append(Line)
+
+        grid = IFC_MODEL.ifcfile.createIfcGridAxis()
+        grid.AxisTag = str(i_grid[0]) + "Y"
+        grid.AxisCurve = Line
+        grid.SameSense = True
+        gridY.append(grid)
+
+    print(f"polylineSet: {polylineSet}")
+    print(f"gridX: {gridX}")
+    print(f"gridY: {gridY}")
+
+        # Defining the grid
+    PntGrid = IFC_MODEL.ifcfile.createIfcCartesianPoint(O)
+
+    myGridCoordinateSystem = IFC_MODEL.ifcfile.createIfcAxis2Placement3D()
+    myGridCoordinateSystem.Location = PntGrid
+    myGridCoordinateSystem.Axis = IFC_MODEL.ifcfile.createIfcDirection(Z)
+    myGridCoordinateSystem.RefDirection = IFC_MODEL.ifcfile.createIfcDirection(
+            X)
+
+    grid_placement = IFC_MODEL.ifcfile.createIfcLocalPlacement()
+    print(f"IFC story PLACEMENT: {IFC_MODEL.story_placement}")
+    grid_placement.PlacementRelTo = IFC_MODEL.story_placement
+    grid_placement.RelativePlacement = myGridCoordinateSystem
+
+    print(f"Grid Placement: {grid_placement}")
+
+    grid_curvedSet = IFC_MODEL.ifcfile.createIfcGeometricCurveSet(
+            polylineSet)
+
+    print("Creating grid shape representation...")
+    gridShape_Reppresentation = IFC_MODEL.ifcfile.createIfcShapeRepresentation()
+    gridShape_Reppresentation.ContextOfItems = IFC_MODEL.footprint_context
+    gridShape_Reppresentation.RepresentationIdentifier = 'FootPrint'
+    gridShape_Reppresentation.RepresentationType = 'GeometricCurveSet'
+    gridShape_Reppresentation.Items = [grid_curvedSet]
+    print(f"Grid Shape Representation: {gridShape_Reppresentation}")
+
+    print("Creating grid product definition shape...")
+    grid_Representation = IFC_MODEL.ifcfile.createIfcProductDefinitionShape()
+    grid_Representation.Representations = [gridShape_Reppresentation]
+    print(f"Grid Product Definition Shape: {grid_Representation}")
+
+    print("Creating grid...")
+    myGrid = IFC_MODEL.ifcfile.createIfcGrid(
+            IFC_MODEL.create_guid(), IFC_MODEL.owner_history)
+    myGrid.ObjectPlacement = grid_placement
+    myGrid.Representation = grid_Representation
+    myGrid.UAxes = gridX
+    myGrid.VAxes = gridY
+    print(f"Grid: {myGrid}")
+
+    print("Creating container spatial structure...")
+    container_SpatialStructure = IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(
+            IFC_MODEL.create_guid(), IFC_MODEL.owner_history)
+    container_SpatialStructure.Name = 'BuildingstoryContainer'
+    container_SpatialStructure.Description = 'BuildingstoryContainer for Elements'
+    container_SpatialStructure.RelatingStructure = IFC_MODEL.site
+    container_SpatialStructure.RelatedElements = [myGrid]
+    print(f"Container Spatial Structure: {container_SpatialStructure}")
+
+    print("Grid creation completed.")
+
+    IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
+    return True
 
 
 @tool
@@ -454,29 +461,35 @@ def create_wall(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_co
             create_session(sid)
             IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
 
-        print("length of ifc building storey",
+        return wall_create(sid, story_n, start_coord, height, thickness, material, IFC_MODEL)
+    except Exception as e:
+        print(f"Error creating wall: {e}")
+        raise
+
+def wall_create(sid, story_n, start_coord, height, thickness, material, IFC_MODEL):
+    print("length of ifc building storey",
               len(IFC_MODEL.building_story_list))
-        if len(IFC_MODEL.building_story_list) < story_n:
-            IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
-            print("created building storey. current length:",
+    if len(IFC_MODEL.building_story_list) < story_n:
+        IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
+        print("created building storey. current length:",
                   len(IFC_MODEL.building_story_list))
 
-        story = IFC_MODEL.building_story_list[story_n - 1]
-        elevation = (story.Elevation)
-        story_placement = story.ObjectPlacement
+    story = IFC_MODEL.building_story_list[story_n - 1]
+    elevation = (story.Elevation)
+    story_placement = story.ObjectPlacement
 
         # 1. Populate the coordinates for start and end
-        start_coord, end_coord = list(map(float, start_coord.split(','))), list(tuple(
+    start_coord, end_coord = list(map(float, start_coord.split(','))), list(tuple(
             map(float, end_coord.split(','))))
-        start_coord[2], end_coord[2] = elevation, elevation
-        start_coord, end_coord = tuple(start_coord), tuple(end_coord)
+    start_coord[2], end_coord[2] = elevation, elevation
+    start_coord, end_coord = tuple(start_coord), tuple(end_coord)
 
         # 2. Calculate the wall length and direction
-        length = ((end_coord[0] - start_coord[0]) ** 2 +
+    length = ((end_coord[0] - start_coord[0]) ** 2 +
                   (end_coord[1] - start_coord[1]) ** 2) ** 0.5
 
-        if length > 0:
-            direction = (
+    if length > 0:
+        direction = (
                 (end_coord[0] - start_coord[0]) /
                 length,  # normalized x component
                 (end_coord[1] - start_coord[1]) / \
@@ -485,24 +498,21 @@ def create_wall(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_co
             )
 
             # 3. IFC model setup
-            context = IFC_MODEL.ifcfile.by_type(
+        context = IFC_MODEL.ifcfile.by_type(
                 "IfcGeometricRepresentationContext")[0]
-            owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
+        owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
             # 4. Create the wall placement with correct direction
-            wall_placement = IFC_MODEL.create_ifclocalplacement(
+        wall_placement = IFC_MODEL.create_ifclocalplacement(
                 start_coord, Z, direction, relative_to=story_placement)
             # 5. Create the wall
-            wall = IFC_MODEL.create_wall(
+        wall = IFC_MODEL.create_wall(
                 context, owner_history, wall_placement, length, height, thickness, material)
-            wall_guid = wall.GlobalId
-            IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
+        wall_guid = wall.GlobalId
+        IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
             ), owner_history, "Building story Container", None, [wall], story)
 
-            IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
-        return True, wall_guid
-    except Exception as e:
-        print(f"Error creating wall: {e}")
-        raise
+        IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
+    return True, wall_guid
 
 
 @tool
@@ -555,7 +565,7 @@ def create_isolated_footing(sid: Annotated[str, InjectedToolArg], story_n: int =
         print(f"An error occurred: {e}")
         raise
 
-
+def isolated_footing_create(sid: str, story_n: int, location: tuple, length: float, width: float, thickness: float)
 @tool
 def create_strip_footing(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0), end_point: tuple = (10.0, 0.0, 0.0), width: float = 1.0, depth: float = 1.0) -> bool:
     """
@@ -628,43 +638,46 @@ def create_void_in_wall(sid: Annotated[str, InjectedToolArg], host_wall_id=None,
             create_session(sid)
             IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
 
-        print(
-            f"host_wall_id: {host_wall_id}, width: {width}, height: {height}, depth: {depth}, void_location: {void_location}")
-        # Retrieve wall with element ID
-        walls = IFC_MODEL.ifcfile.by_type("IfcWall")
-        print("All of the walls: ", walls)
-        host_wall = None
-        for wall in walls:
-            if str(wall.GlobalId).strip() == str(host_wall_id).strip():
-                host_wall = wall
-                break
-
-        if host_wall is None:
-            raise ValueError(f"No wall found with GlobalId: {host_wall_id}")
-
-        # Ensure void_location is a tuple of (X, Y, Z)
-        try:
-            void_location = tuple(float(coord) for coord in void_location)
-            print(
-                f"Void Location: {void_location}, Void Location type: {type(void_location)}")
-        except:
-            print(
-                f"Cannot convert void_location to correct tuples. Original void_location: {void_location}")
-            raise ValueError
-
-        # Create void element
-        IFC_MODEL.create_void_in_wall(
-            wall=host_wall, width=width, height=height, depth=depth, void_location=void_location)
-
-        # # Save structure
-        IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
-        # retrieval_tool = parse_ifc()
-
-        print("Void created and committed to the IFC file successfully.")
-        return True
+        return void_in_wall_create(sid, host_wall_id, width, height, depth, void_location, IFC_MODEL)
     except Exception as e:
         print(f"An error occurred while creating the void: {e}")
         raise
+
+def void_in_wall_create(sid, host_wall_id, width, height, depth, void_location, IFC_MODEL):
+    print(
+            f"host_wall_id: {host_wall_id}, width: {width}, height: {height}, depth: {depth}, void_location: {void_location}")
+        # Retrieve wall with element ID
+    walls = IFC_MODEL.ifcfile.by_type("IfcWall")
+    print("All of the walls: ", walls)
+    host_wall = None
+    for wall in walls:
+        if str(wall.GlobalId).strip() == str(host_wall_id).strip():
+            host_wall = wall
+            break
+
+    if host_wall is None:
+        raise ValueError(f"No wall found with GlobalId: {host_wall_id}")
+
+        # Ensure void_location is a tuple of (X, Y, Z)
+    try:
+        void_location = tuple(float(coord) for coord in void_location)
+        print(
+                f"Void Location: {void_location}, Void Location type: {type(void_location)}")
+    except:
+        print(
+                f"Cannot convert void_location to correct tuples. Original void_location: {void_location}")
+        raise ValueError
+
+        # Create void element
+    IFC_MODEL.create_void_in_wall(
+            wall=host_wall, width=width, height=height, depth=depth, void_location=void_location)
+
+        # # Save structure
+    IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
+        # retrieval_tool = parse_ifc()
+
+    print("Void created and committed to the IFC file successfully.")
+    return True
 
 
 @tool
@@ -685,120 +698,123 @@ def create_floor(sid: Annotated[str, InjectedToolArg], story_n: int = 1, point_l
             create_session(sid)
             IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
 
-        print(
-            f"story_n: {story_n}, point_list: {point_list}, slab_thickness: {slab_thickness}")
-
-        # 1. Get model information.
-        try:
-            context = IFC_MODEL.ifcfile.by_type(
-                "IfcGeometricRepresentationContext")[0]
-        except Exception as e:
-            print(f"Error getting model context: {e}")
-            raise
-
-        try:
-            owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
-            owner_history.CreationDate = int(owner_history.CreationDate)
-        except Exception as e:
-            print(f"Error getting owner_history: {e}")
-            raise
-
-        # 2. Get story information
-        try:
-            if len(IFC_MODEL.building_story_list) < story_n:
-                IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
-
-            story = IFC_MODEL.building_story_list[story_n - 1]
-            elevation = story.Elevation
-            story_placement = story.ObjectPlacement
-        except Exception as e:
-            print(f"Error getting story information: {e}")
-            raise
-
-        print(f"elevation: {elevation}")
-
-        # 3. Create slab boundary
-        try:
-            slab = ifcopenshell.api.run(
-                "root.create_entity", IFC_MODEL.ifcfile, ifc_class="IfcSlab")
-            slab.Name = "Slab"
-            slab_placement = IFC_MODEL.create_ifclocalplacement(
-                (0., 0., float(elevation)), Z, X, relative_to=story_placement)
-            slab.ObjectPlacement = slab_placement
-
-            ifc_slabtype = ifcopenshell.api.run(
-                "root.create_entity", IFC_MODEL.ifcfile, ifc_class="IfcSlabType")
-            ifcopenshell.api.run("type.assign_type", IFC_MODEL.ifcfile,
-                                 related_objects=[slab], relating_type=ifc_slabtype)
-
-        except Exception as e:
-            print(f"Error creating slab boundary: {e}")
-            raise
-
-        # 4. Create points for slab boundary
-        try:
-            points = [IFC_MODEL.ifcfile.createIfcCartesianPoint(
-                (x, y, z)) for x, y, z in point_list]
-            points.append(points[0])  # close loop
-
-            # 5. Create boundary polyline
-            slab_line = IFC_MODEL.ifcfile.createIfcPolyline(points)
-            slab_profile = IFC_MODEL.ifcfile.createIfcArbitraryClosedProfileDef(
-                "AREA", None, slab_line)
-            ifc_direction = IFC_MODEL.ifcfile.createIfcDirection(Z)
-        except Exception as e:
-            print(f"Error creating points for slab boundary: {e}")
-            raise
-
-        # 6. Create local axis placement
-        try:
-            point = IFC_MODEL.ifcfile.createIfcCartesianPoint((0.0, 0.0, 0.0))
-            dir1 = IFC_MODEL.ifcfile.createIfcDirection((0., 0., 1.0))
-            dir2 = IFC_MODEL.ifcfile.createIfcDirection((1.0, 0., 0.0))
-            axis2placement = IFC_MODEL.ifcfile.createIfcAxis2Placement3D(
-                point, dir1, dir2)
-        except Exception as e:
-            print(f"Error creating local axis placement: {e}")
-            raise
-
-        # 7. Create extruded slab geometry
-        try:
-            extrusion = slab_thickness
-            slab_solid = IFC_MODEL.ifcfile.createIfcExtrudedAreaSolid(
-                slab_profile,  axis2placement, ifc_direction, extrusion)
-            shape_representation = IFC_MODEL.ifcfile.createIfcShapeRepresentation(ContextOfItems=context,
-                                                                                  RepresentationIdentifier='Body',
-                                                                                  RepresentationType='SweptSolid',
-                                                                                  Items=[slab_solid])
-        except Exception as e:
-            print(f"Error creating extruded slab geometry: {e}")
-            raise
-
-        print(
-            f"Shape Representation: {shape_representation}, IFC Slab Type: {ifc_slabtype}, IFC Slab: {slab}, story: {story}, Elevation: {elevation}, Points: {points}")
-
-        # 8. Create product entity and assign to spatial container
-        try:
-            ifcopenshell.api.run("geometry.assign_representation", IFC_MODEL.ifcfile,
-                                 product=ifc_slabtype, representation=shape_representation)
-            IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-            ), owner_history, "Building story Container", None, [slab], story)
-        except Exception as e:
-            print(
-                f"Error creating product entity and assigning to spatial container: {e}")
-            raise
-
-        # 9. Save the structure
-        try:
-            IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
-        except Exception as e:
-            print(f"Error saving structure: {e}")
-            raise
-
-        return True
+        return floor_create(sid, story_n, point_list, slab_thickness, IFC_MODEL)
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
+
+def floor_create(sid, story_n, point_list, slab_thickness, IFC_MODEL):
+    print(
+            f"story_n: {story_n}, point_list: {point_list}, slab_thickness: {slab_thickness}")
+
+        # 1. Get model information.
+    try:
+        context = IFC_MODEL.ifcfile.by_type(
+                "IfcGeometricRepresentationContext")[0]
+    except Exception as e:
+        print(f"Error getting model context: {e}")
+        raise
+
+    try:
+        owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
+        owner_history.CreationDate = int(owner_history.CreationDate)
+    except Exception as e:
+        print(f"Error getting owner_history: {e}")
+        raise
+
+        # 2. Get story information
+    try:
+        if len(IFC_MODEL.building_story_list) < story_n:
+            IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
+
+        story = IFC_MODEL.building_story_list[story_n - 1]
+        elevation = story.Elevation
+        story_placement = story.ObjectPlacement
+    except Exception as e:
+        print(f"Error getting story information: {e}")
+        raise
+
+    print(f"elevation: {elevation}")
+
+        # 3. Create slab boundary
+    try:
+        slab = ifcopenshell.api.run(
+                "root.create_entity", IFC_MODEL.ifcfile, ifc_class="IfcSlab")
+        slab.Name = "Slab"
+        slab_placement = IFC_MODEL.create_ifclocalplacement(
+                (0., 0., float(elevation)), Z, X, relative_to=story_placement)
+        slab.ObjectPlacement = slab_placement
+
+        ifc_slabtype = ifcopenshell.api.run(
+                "root.create_entity", IFC_MODEL.ifcfile, ifc_class="IfcSlabType")
+        ifcopenshell.api.run("type.assign_type", IFC_MODEL.ifcfile,
+                                 related_objects=[slab], relating_type=ifc_slabtype)
+
+    except Exception as e:
+        print(f"Error creating slab boundary: {e}")
+        raise
+
+        # 4. Create points for slab boundary
+    try:
+        points = [IFC_MODEL.ifcfile.createIfcCartesianPoint(
+                (x, y, z)) for x, y, z in point_list]
+        points.append(points[0])  # close loop
+
+            # 5. Create boundary polyline
+        slab_line = IFC_MODEL.ifcfile.createIfcPolyline(points)
+        slab_profile = IFC_MODEL.ifcfile.createIfcArbitraryClosedProfileDef(
+                "AREA", None, slab_line)
+        ifc_direction = IFC_MODEL.ifcfile.createIfcDirection(Z)
+    except Exception as e:
+        print(f"Error creating points for slab boundary: {e}")
+        raise
+
+        # 6. Create local axis placement
+    try:
+        point = IFC_MODEL.ifcfile.createIfcCartesianPoint((0.0, 0.0, 0.0))
+        dir1 = IFC_MODEL.ifcfile.createIfcDirection((0., 0., 1.0))
+        dir2 = IFC_MODEL.ifcfile.createIfcDirection((1.0, 0., 0.0))
+        axis2placement = IFC_MODEL.ifcfile.createIfcAxis2Placement3D(
+                point, dir1, dir2)
+    except Exception as e:
+        print(f"Error creating local axis placement: {e}")
+        raise
+
+        # 7. Create extruded slab geometry
+    try:
+        extrusion = slab_thickness
+        slab_solid = IFC_MODEL.ifcfile.createIfcExtrudedAreaSolid(
+                slab_profile,  axis2placement, ifc_direction, extrusion)
+        shape_representation = IFC_MODEL.ifcfile.createIfcShapeRepresentation(ContextOfItems=context,
+                                                                                  RepresentationIdentifier='Body',
+                                                                                  RepresentationType='SweptSolid',
+                                                                                  Items=[slab_solid])
+    except Exception as e:
+        print(f"Error creating extruded slab geometry: {e}")
+        raise
+
+    print(
+            f"Shape Representation: {shape_representation}, IFC Slab Type: {ifc_slabtype}, IFC Slab: {slab}, story: {story}, Elevation: {elevation}, Points: {points}")
+
+        # 8. Create product entity and assign to spatial container
+    try:
+        ifcopenshell.api.run("geometry.assign_representation", IFC_MODEL.ifcfile,
+                                 product=ifc_slabtype, representation=shape_representation)
+        IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
+            ), owner_history, "Building story Container", None, [slab], story)
+    except Exception as e:
+        print(
+                f"Error creating product entity and assigning to spatial container: {e}")
+        raise
+
+        # 9. Save the structure
+    try:
+        IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
+    except Exception as e:
+        print(f"Error saving structure: {e}")
+        raise
+
+    return True
 
 
 @tool
@@ -819,184 +835,187 @@ def create_roof(sid: Annotated[str, InjectedToolArg], story_n: int = 1, point_li
             create_session(sid)
             IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
 
-        print(
-            f"story_n: {story_n}, point_list: {point_list}, roof_thickness: {roof_thickness}")
-        try:
-            # 1. Get model information
-            context = IFC_MODEL.ifcfile.by_type(
-                "IfcGeometricRepresentationContext")[0]
-        except Exception as e:
-            print(f"Error getting context: {e}")
-            raise
-
-        try:
-            owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
-            owner_history.CreationDate = int(owner_history.CreationDate)
-        except Exception as e:
-            print(f"Error getting owner_history: {e}")
-            raise
-
-        try:
-            # 2. Get story information
-            if len(IFC_MODEL.building_story_list) < story_n:
-                IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
-        except Exception as e:
-            print(f"Error creating building stories: {e}")
-            raise
-
-        try:
-            story = IFC_MODEL.building_story_list[story_n - 1]
-            print(f"story: {story}")
-            print(f"story_name: {story.Name}")
-        except Exception as e:
-            print(f"Error getting story: {e}")
-            raise
-
-        try:
-            elevation = (float(story.Elevation) + float(point_list[0][2]))
-        except Exception as e:
-            print(f"Error getting elevation: {e}")
-            raise
-
-        try:
-            story_placement = story.ObjectPlacement
-        except Exception as e:
-            print(f"Error getting story_placement: {e}")
-            raise
-
-        print(f"elevation: {elevation}")
-
-        try:
-            # 3. Create slab boundary
-            roof = ifcopenshell.api.run(
-                "root.create_entity", IFC_MODEL.ifcfile, ifc_class="IfcRoof")
-        except Exception as e:
-            print(f"Error creating roof entity: {e}")
-            raise
-
-        try:
-            roof_placement = IFC_MODEL.create_ifclocalplacement(
-                (0., 0., elevation), Z, X, relative_to=story_placement)
-        except Exception as e:
-            print(f"Error creating roof_placement: {e}")
-            raise
-
-        try:
-            roof.ObjectPlacement = roof_placement
-        except Exception as e:
-            print(f"Error setting roof.ObjectPlacement: {e}")
-            raise
-
-        try:
-            # 4. Create points for roof boundary
-            points = [IFC_MODEL.ifcfile.createIfcCartesianPoint(
-                [float(x), float(y), float(z)]) for x, y, z in point_list]
-        except Exception as e:
-            print(f"Error creating points: {e}")
-            raise
-
-        try:
-            points.append(points[0])
-        except Exception as e:
-            print(f"Error appending first point: {e}")
-            raise
-
-        try:
-            # 5. Create boundary polyline
-            roof_line = IFC_MODEL.ifcfile.createIfcPolyline(points)
-        except Exception as e:
-            print(f"Error creating roof_line: {e}")
-            raise
-
-        try:
-            roof_profile = IFC_MODEL.ifcfile.createIfcArbitraryClosedProfileDef(
-                "AREA", None, roof_line)
-        except Exception as e:
-            print(f"Error creating roof_profile: {e}")
-            raise
-
-        try:
-            ifc_direction = IFC_MODEL.ifcfile.createIfcDirection(Z)
-        except Exception as e:
-            print(f"Error creating ifc_direction: {e}")
-            raise
-
-        try:
-            # 6. Create local axis placement
-            point = IFC_MODEL.ifcfile.createIfcCartesianPoint([0.0, 0.0, 0.0])
-        except Exception as e:
-            print(f"Error creating point: {e}")
-            raise
-
-        try:
-            dir1 = IFC_MODEL.ifcfile.createIfcDirection([0., 0., 1.])
-        except Exception as e:
-            print(f"Error creating dir1: {e}")
-            raise
-
-        try:
-            dir2 = IFC_MODEL.ifcfile.createIfcDirection([1., 0., 0.])
-        except Exception as e:
-            print(f"Error creating dir2: {e}")
-            raise
-
-        try:
-            axis2placement = IFC_MODEL.ifcfile.createIfcAxis2Placement3D(
-                point, dir1, dir2)
-        except Exception as e:
-            print(f"Error creating axis2placement: {e}")
-            raise
-
-        try:
-            # 7. Create extruded roof geometry
-            extrusion = roof_thickness
-        except Exception as e:
-            print(f"Error setting extrusion: {e}")
-            raise
-
-        try:
-            roof_solid = IFC_MODEL.ifcfile.createIfcExtrudedAreaSolid(
-                roof_profile,  axis2placement, ifc_direction, extrusion)
-        except Exception as e:
-            print(f"Error creating roof_solid: {e}")
-            raise
-
-        try:
-            shape_representation = IFC_MODEL.ifcfile.createIfcShapeRepresentation(ContextOfItems=context,
-                                                                                  RepresentationIdentifier='Body',
-                                                                                  RepresentationType='SweptSolid',
-                                                                                  Items=[roof_solid])
-        except Exception as e:
-            print(f"Error creating shape_representation: {e}")
-            raise
-        try:
-            # 8. Assign representation using ifcopenshell.api.run
-            ifcopenshell.api.run("geometry.assign_representation", IFC_MODEL.ifcfile,
-                                 product=roof, representation=shape_representation)
-
-        except Exception as e:
-            print(f"Error assigning representation: {e}")
-            raise
-
-        try:
-            # 9. Create product entity and assign to spatial container
-            IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-            ), owner_history, "Building story Container", None, [roof], story)
-        except Exception as e:
-            print(f"Error assigning container: {e}")
-            raise
-
-        try:
-            # 10. Save structure
-            IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
-        except Exception as e:
-            print(f"Error saving IFC file: {e}")
-            raise
-
-        return True
+        return roof_create(sid, story_n, point_list, roof_thickness, IFC_MODEL)
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
+
+def roof_create(sid, story_n, point_list, roof_thickness, IFC_MODEL):
+    print(
+            f"story_n: {story_n}, point_list: {point_list}, roof_thickness: {roof_thickness}")
+    try:
+            # 1. Get model information
+        context = IFC_MODEL.ifcfile.by_type(
+                "IfcGeometricRepresentationContext")[0]
+    except Exception as e:
+        print(f"Error getting context: {e}")
+        raise
+
+    try:
+        owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
+        owner_history.CreationDate = int(owner_history.CreationDate)
+    except Exception as e:
+        print(f"Error getting owner_history: {e}")
+        raise
+
+    try:
+            # 2. Get story information
+        if len(IFC_MODEL.building_story_list) < story_n:
+            IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
+    except Exception as e:
+        print(f"Error creating building stories: {e}")
+        raise
+
+    try:
+        story = IFC_MODEL.building_story_list[story_n - 1]
+        print(f"story: {story}")
+        print(f"story_name: {story.Name}")
+    except Exception as e:
+        print(f"Error getting story: {e}")
+        raise
+
+    try:
+        elevation = (float(story.Elevation) + float(point_list[0][2]))
+    except Exception as e:
+        print(f"Error getting elevation: {e}")
+        raise
+
+    try:
+        story_placement = story.ObjectPlacement
+    except Exception as e:
+        print(f"Error getting story_placement: {e}")
+        raise
+
+    print(f"elevation: {elevation}")
+
+    try:
+            # 3. Create slab boundary
+        roof = ifcopenshell.api.run(
+                "root.create_entity", IFC_MODEL.ifcfile, ifc_class="IfcRoof")
+    except Exception as e:
+        print(f"Error creating roof entity: {e}")
+        raise
+
+    try:
+        roof_placement = IFC_MODEL.create_ifclocalplacement(
+                (0., 0., elevation), Z, X, relative_to=story_placement)
+    except Exception as e:
+        print(f"Error creating roof_placement: {e}")
+        raise
+
+    try:
+        roof.ObjectPlacement = roof_placement
+    except Exception as e:
+        print(f"Error setting roof.ObjectPlacement: {e}")
+        raise
+
+    try:
+            # 4. Create points for roof boundary
+        points = [IFC_MODEL.ifcfile.createIfcCartesianPoint(
+                [float(x), float(y), float(z)]) for x, y, z in point_list]
+    except Exception as e:
+        print(f"Error creating points: {e}")
+        raise
+
+    try:
+        points.append(points[0])
+    except Exception as e:
+        print(f"Error appending first point: {e}")
+        raise
+
+    try:
+            # 5. Create boundary polyline
+        roof_line = IFC_MODEL.ifcfile.createIfcPolyline(points)
+    except Exception as e:
+        print(f"Error creating roof_line: {e}")
+        raise
+
+    try:
+        roof_profile = IFC_MODEL.ifcfile.createIfcArbitraryClosedProfileDef(
+                "AREA", None, roof_line)
+    except Exception as e:
+        print(f"Error creating roof_profile: {e}")
+        raise
+
+    try:
+        ifc_direction = IFC_MODEL.ifcfile.createIfcDirection(Z)
+    except Exception as e:
+        print(f"Error creating ifc_direction: {e}")
+        raise
+
+    try:
+            # 6. Create local axis placement
+        point = IFC_MODEL.ifcfile.createIfcCartesianPoint([0.0, 0.0, 0.0])
+    except Exception as e:
+        print(f"Error creating point: {e}")
+        raise
+
+    try:
+        dir1 = IFC_MODEL.ifcfile.createIfcDirection([0., 0., 1.])
+    except Exception as e:
+        print(f"Error creating dir1: {e}")
+        raise
+
+    try:
+        dir2 = IFC_MODEL.ifcfile.createIfcDirection([1., 0., 0.])
+    except Exception as e:
+        print(f"Error creating dir2: {e}")
+        raise
+
+    try:
+        axis2placement = IFC_MODEL.ifcfile.createIfcAxis2Placement3D(
+                point, dir1, dir2)
+    except Exception as e:
+        print(f"Error creating axis2placement: {e}")
+        raise
+
+    try:
+            # 7. Create extruded roof geometry
+        extrusion = roof_thickness
+    except Exception as e:
+        print(f"Error setting extrusion: {e}")
+        raise
+
+    try:
+        roof_solid = IFC_MODEL.ifcfile.createIfcExtrudedAreaSolid(
+                roof_profile,  axis2placement, ifc_direction, extrusion)
+    except Exception as e:
+        print(f"Error creating roof_solid: {e}")
+        raise
+
+    try:
+        shape_representation = IFC_MODEL.ifcfile.createIfcShapeRepresentation(ContextOfItems=context,
+                                                                                  RepresentationIdentifier='Body',
+                                                                                  RepresentationType='SweptSolid',
+                                                                                  Items=[roof_solid])
+    except Exception as e:
+        print(f"Error creating shape_representation: {e}")
+        raise
+    try:
+            # 8. Assign representation using ifcopenshell.api.run
+        ifcopenshell.api.run("geometry.assign_representation", IFC_MODEL.ifcfile,
+                                 product=roof, representation=shape_representation)
+
+    except Exception as e:
+        print(f"Error assigning representation: {e}")
+        raise
+
+    try:
+            # 9. Create product entity and assign to spatial container
+        IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
+            ), owner_history, "Building story Container", None, [roof], story)
+    except Exception as e:
+        print(f"Error assigning container: {e}")
+        raise
+
+    try:
+            # 10. Save structure
+        IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
+    except Exception as e:
+        print(f"Error saving IFC file: {e}")
+        raise
+
+    return True
 
 
 @tool
