@@ -534,38 +534,39 @@ def create_isolated_footing(sid: Annotated[str, InjectedToolArg], story_n: int =
             print("No IFC model found for the given session.")
             create_session(sid)
             IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
-
-        # Get story information
-        if len(IFC_MODEL.building_story_list) < story_n:
-            IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
-
-        story = IFC_MODEL.building_story_list[story_n - 1]
-        elevation = (story.Elevation)
-        story_placement = story.ObjectPlacement
-        print(f"elevation: {elevation}")
-
-        # Adjust location Z-coordinate by adding the story's elevation
-        location = (location[0], location[1], location[2] + elevation)
-
-        # IFC model information
-        owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
-
-        # Call the function in ifc.py to create the footing
-        footing = IFC_MODEL.create_isolated_footing(
-            location, length, width, thickness)
-        IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-        ), owner_history, "Building story Container", None, [footing], story)
-
-        # Save structure
-        IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
-        retrieval_tool = parse_ifc()
-
-        return True
+        return isolated_footing_create(sid, IFC_MODEL, story_n, location, length, width, thickness)
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
 
-def isolated_footing_create(sid: str, story_n: int, location: tuple, length: float, width: float, thickness: float)
+def isolated_footing_create(sid: str, IFC_MODEL: IfcModel, story_n: int, location: tuple, length: float, width: float, thickness: float) :
+    global retrieval_tool
+    # Get story information
+    if len(IFC_MODEL.building_story_list) < story_n:
+        IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
+
+    story = IFC_MODEL.building_story_list[story_n - 1]
+    elevation = (story.Elevation)
+    story_placement = story.ObjectPlacement
+    print(f"elevation: {elevation}")
+
+    # Adjust location Z-coordinate by adding the story's elevation
+    location = (location[0], location[1], location[2] + elevation)
+
+    # IFC model information
+    owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
+
+    # Call the function in ifc.py to create the footing
+    footing = IFC_MODEL.create_isolated_footing(
+            location, length, width, thickness)
+    IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
+        ), owner_history, "Building story Container", None, [footing], story)
+
+    # Save structure
+    IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
+    retrieval_tool = parse_ifc()
+
+    return True
 @tool
 def create_strip_footing(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0), end_point: tuple = (10.0, 0.0, 0.0), width: float = 1.0, depth: float = 1.0) -> bool:
     """
@@ -1038,37 +1039,39 @@ def create_isolated_footing(sid: Annotated[str, InjectedToolArg], story_n: int =
             create_session(sid)
             IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
 
-        # Get story information
-        if len(IFC_MODEL.building_story_list) < story_n:
-            IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
-
-        story = IFC_MODEL.building_story_list[story_n - 1]
-        elevation = (story.Elevation)
-        story_placement = story.ObjectPlacement
-        print(f"elevation: {elevation}")
-
-        # Adjust location Z-coordinate by adding the story's elevation
-        location = (location[0], location[1], location[2] + elevation)
-
-        # IFC model information
-        owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
-
-        # Call the function in ifc.py to create the footing
-        footing = IFC_MODEL.create_isolated_footing(
-            location, length, width, thickness)
-        IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-        ), owner_history, "Building story Container", None, [footing], story)
-
-        # Save structure
-        IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
-        retrieval_tool = parse_ifc()
-
-        return True
+        return isolated_footing_create(sid, IFC_MODEL, story_n, location, length, width, thickness)
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
 
+def isolated_footing_create(sid: str, IFC_MODEL: IfcModel, story_n: int, location: tuple, length: float, width: float, thickness: float) :
+    global retrieval_tool
+    # Get story information
+    if len(IFC_MODEL.building_story_list) < story_n:
+        IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
 
+    story = IFC_MODEL.building_story_list[story_n - 1]
+    elevation = (story.Elevation)
+    story_placement = story.ObjectPlacement
+    print(f"elevation: {elevation}")
+
+    # Adjust location Z-coordinate by adding the story's elevation
+    location = (location[0], location[1], location[2] + elevation)
+
+    # IFC model information
+    owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
+
+    # Call the function in ifc.py to create the footing
+    footing = IFC_MODEL.create_isolated_footing(
+            location, length, width, thickness)
+    IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
+        ), owner_history, "Building story Container", None, [footing], story)
+
+    # Save structure
+    IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
+    retrieval_tool = parse_ifc()
+
+    return True
 @tool
 def create_strip_footing(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0), end_point: tuple = (10.0, 0.0, 0.0), width: float = 1.0, depth: float = 1.0) -> bool:
     """
@@ -1088,38 +1091,41 @@ def create_strip_footing(sid: Annotated[str, InjectedToolArg], story_n: int = 1,
             print("No IFC model found for the given session.")
             create_session(sid)
             IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
-
-        # Get story information
-        if len(IFC_MODEL.building_story_list) < story_n:
-            IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
-
-        story = IFC_MODEL.building_story_list[story_n - 1]
-        elevation = (story.Elevation)
-        story_placement = story.ObjectPlacement
-        print(f"elevation: {elevation}")
-
-        # Adjust start and end points Z-coordinate by adding the story's elevation
-        start_point = (start_point[0], start_point[1],
-                       start_point[2] + elevation)
-        end_point = (end_point[0], end_point[1], end_point[2] + elevation)
-
-        # IFC model information
-        owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
-
-        # Call the function in ifc.py to create the continuous footing
-        footing = IFC_MODEL.create_strip_footing(
-            start_point, end_point, width, depth)
-        IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-        ), owner_history, "Building story Container", None, [footing], story)
-
-        # Save structure
-        IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
-        # retrieval_tool = parse_ifc()
-
-        return True
+        return strip_footing_create(sid, story_n, IFC_MODEL, start_point, end_point, width, depth)
+        
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
+def strip_footing_create(sid: str, story_n: int, IFC_MODEL: IfcModel, start_point: tuple, end_point: tuple, width: float, depth: float) : 
+    global retrieval_tool
+    # Get story information
+    if len(IFC_MODEL.building_story_list) < story_n:
+        IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
+
+    story = IFC_MODEL.building_story_list[story_n - 1]
+    elevation = (story.Elevation)
+    story_placement = story.ObjectPlacement
+    print(f"elevation: {elevation}")
+
+    # Adjust start and end points Z-coordinate by adding the story's elevation
+    start_point = (start_point[0], start_point[1],
+                       start_point[2] + elevation)
+    end_point = (end_point[0], end_point[1], end_point[2] + elevation)
+
+    # IFC model information
+    owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
+
+    # Call the function in ifc.py to create the continuous footing
+    footing = IFC_MODEL.create_strip_footing(
+            start_point, end_point, width, depth)
+    IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
+        ), owner_history, "Building story Container", None, [footing], story)
+
+    # Save structure
+    IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
+    # retrieval_tool = parse_ifc()
+
+    return True
 
 
 @tool
