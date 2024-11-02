@@ -71,11 +71,10 @@ def create_session(sid: Annotated[str, InjectedToolArg]) -> bool:
     """
     # 1. Tries to make the session.
     try:
-        session_create(sid)
+        return session_create(sid)[0]
     except Exception as e:
         print(f"An error occurred: {e}")
         raise
-@tool
 def session_create(sid: str) -> bool :
     # 2. Writes info in the IFC model.
     print('Creating a new IFC model for session', sid)
@@ -89,7 +88,7 @@ def session_create(sid: str) -> bool :
     )
     global_store.sid_to_ifc_model[sid] = ifc_model
     ifc_model.save_ifc(f"public/{sid}/canvas.ifc")
-    return True
+    return True, ifc_model
 
 @tool
 def create_building_story(sid: Annotated[str, InjectedToolArg], elevation: float = 0.0, name: str = "Level 1") -> bool:
@@ -110,6 +109,7 @@ def create_building_story(sid: Annotated[str, InjectedToolArg], elevation: float
     return create_story(sid, IFC_MODEL, elevation, name)
 
 def create_story(sid: str, model: IfcModel, elevation: float, name: str) :
+    global levels_dict
     try:
         # 1. Create the building story
         model.create_building_stories(elevation, name)
@@ -242,7 +242,13 @@ def create_column(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_
             print("No IFC model found for the given session.")
             create_session(sid)
             IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
-        # 1. Get the appropriate story and its elevation.
+        return column_create(sid, IFC_MODEL, story_n, start_coord, height, section_name, material)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        raise
+
+def column_create(sid: str, IFC_MODEL: IfcModel, story_n: int, start_coord: str, height: float, section_name: str, material: str) :
+    # 1. Get the appropriate story and its elevation.
         if len(IFC_MODEL.building_story_list) < story_n:
             IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
         story = IFC_MODEL.building_story_list[story_n - 1]
@@ -274,11 +280,6 @@ def create_column(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_
         # 7. Save structure
         IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
         return True
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        raise
-
-
 @tool
 def create_grid(sid: Annotated[str, InjectedToolArg], grids_x_distance_between: float = 10.0, grids_y_distance_between: float = 10.0, grids_x_direction_amount: int = 5, grids_y_direction_amount: int = 5, grid_extends: float = 50.0) -> bool:
     """
