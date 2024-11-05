@@ -26,8 +26,24 @@ class ModelTest(unittest.TestCase) :
         self.assertIsNotNone(beam, "Beam access failed")
         self.assertEqual(ifcopenshell.util.element.get_elements_by_material(self.model.ifcfile, self.model.materials["steel"][0])[0], beam, "Material assignment failed")
         placement = ifcopenshell.util.placement.get_local_placement(beam.ObjectPlacement)
-        self.assertEqual((5.0, 0.0, 0.0), (placement[0][3], placement[1][3], placement[2][3]), "Beam placement not exacty")
+        self.assertEqual((5.0, 0.0, 0.0), (placement[0][3], placement[1][3], placement[2][3]), "Beam placed improperly")
         self.assertEqual(5.0, beam.Representation.Representations[0].Depth, "Beam length failed")
         # Todo: figure out how to test profiles
+    def test_column_creation(self) :
+        self.assertTrue(column_create("test", self.model, "5,0,0", 5.0, "W16X40", "steel"), "Column creation failed")
+        column = self.ifcfile.by_type("IfcColumn")[0]
+        self.assertIsNotNone(column, "Column access failed")
+        self.assertEqual(ifcopenshell.util.element.get_elements_by_material(self.model.ifcfile, self.model.materials["steel"][0])[0], column, "Material assignment failed")
+        placement = ifcopenshell.util.placement.get_local_placement(column.ObjectPlacement)
+        self.assertEqual((5.0, 0.0, 0.0), (placement[0][3], placement[1][3], placement[2][3]), "Column placed improperly")
+        self.assertEqual(5.0, column.Representation.Representations[0].Depth, "Column height failed")
+        # Todo: figure out how to test profiles
+    def test_grid_creation(self) :
+        self.assertTrue(grid_create("test", 5.0, 5.0, 5, 5, 10.0, self.model), "Grid creation failed")
+        grid = self.ifcfile.by_type("IfcGrid")[0]
+        self.assertIsNotNone(grid, "Grid access failed")
+        self.assertEqual(5, len(grid.UAxes), "Improper number of UAxes created")
+        self.assertEqual(5, len(grid.VAxes), "Improper number of VAxes created")
+        # Todo: figure out how to measure length on grid axes
 if __name__ == '__main__' :
     unittest.main()
