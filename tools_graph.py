@@ -462,12 +462,12 @@ def create_wall(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_co
             create_session(sid)
             IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
 
-        return wall_create(sid, story_n, start_coord, height, thickness, material, IFC_MODEL)
+        return wall_create(sid, story_n, start_coord, end_coord, height, thickness, material, IFC_MODEL)
     except Exception as e:
         print(f"Error creating wall: {e}")
         raise
 
-def wall_create(sid, story_n, start_coord, height, thickness, material, IFC_MODEL):
+def wall_create(sid, story_n, start_coord, end_coord, height, thickness, material, IFC_MODEL):
     print("length of ifc building storey",
               len(IFC_MODEL.building_story_list))
     if len(IFC_MODEL.building_story_list) < story_n:
