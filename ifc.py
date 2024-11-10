@@ -324,7 +324,7 @@ class IfcModel:
         - section_name: the name of the section.
         """
         # 1. Create the column profile
-        ifcclosedprofile = self.get_wshape_profile(section_name)
+        ifcclosedprofile = self.support_types[material](section_name, 1.0, 1.0)
         # print('IFC Closed Profile: ', dir(ifcclosedprofile))
         ifcclosedprofile.ProfileName = section_name
         # 2. Create the 3D extrusion.
@@ -356,7 +356,7 @@ class IfcModel:
         - section_name: the name of the section.
         """
         # 1. Create the beam profile
-        point_list = self.get_wshape_points(section_name)
+        point_list = self.support_types[material](section_name, 1.0, 1.0)
 
         # 2. Create extrusion
         extrusion_placement = self.create_ifcaxis2placement()
@@ -832,7 +832,7 @@ class IfcModel:
             raise ValueError(
                 f"Section {section_name} not found in AISC database.")
 
-    def get_wshape_profile(self, section_name):
+    def get_wshape_profile(self, section_data, section_name):
         """
         Returns the shape of the specified section.
 

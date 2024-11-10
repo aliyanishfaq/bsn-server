@@ -184,7 +184,7 @@ def beam_create(sid: str, IFC_MODEL: IfcModel, start_coord: str = "0,0,0", end_c
 
         # 4-2. Create LocalPlacement for beam.
         bm_placement = IFC_MODEL.ifcfile.createIfcLocalPlacement(
-            story, bm_axis2placement)  # can pass building stories as host
+            story.ObjectPlacement, bm_axis2placement)  # can pass building stories as host
         bm.ObjectPlacement = bm_placement
 
         # 4-3. Create 3D axis placement for extrusion.
@@ -193,7 +193,7 @@ def beam_create(sid: str, IFC_MODEL: IfcModel, start_coord: str = "0,0,0", end_c
 
         # 4-4. Create extruded area section for beam.
         bm_extrusion = IFC_MODEL.ifcfile.createIfcExtrudedAreaSolid()
-        ifcclosedprofile = IFC_MODEL.get_wshape_profile(section_name)
+        ifcclosedprofile = IFC_MODEL.support_types[material](section_name, 1.0, 1.0)
 
         ifcclosedprofile.ProfileName = section_name
         bm_extrusion.SweptArea = ifcclosedprofile

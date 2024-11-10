@@ -24,22 +24,46 @@ class ModelTest(unittest.TestCase) :
         self.assertEqual("Level 1", story.Name, "Story naming failed")
         self.assertEqual(0.25, story.Elevation, "Story elevation failed")
     def test_beam_creation(self) :
-        self.assertTrue(beam_create("test", self.model, "5,0,0", "8,4,0", "W16X40", 1, "steel"), "Beam creation failed")
+        self.assertTrue(beam_create("test1", self.model, "5,0,0", "8,4,0", "W16X40", 1, "wood"), "Beam creation failed")
         beam = self.model.ifcfile.by_type("IfcBeam")[0]
         self.assertIsNotNone(beam, "Beam access failed")
-        self.assertEqual(ifcopenshell.util.element.get_elements_by_material(self.model.ifcfile, self.model.materials["steel"][0]), {beam}, "Material assignment failed")
+        self.assertEqual(ifcopenshell.util.element.get_elements_by_material(self.model.ifcfile, self.model.materials["wood"][0]), {beam}, "Material assignment failed")
         placement = ifcopenshell.util.placement.get_local_placement(beam.ObjectPlacement)
         self.assertEqual((5.0, 0.0, 0.0), (placement[0][3], placement[1][3], placement[2][3]), "Beam placed improperly")
-        self.assertEqual(5.0, beam.Representation.Representations[0].Depth, "Beam length failed")
+        wall_shape = ifcopenshell.geom.create_shape(ifcopenshell.geom.settings(), beam)
+        wall_verts = ifcopenshell.util.shape.get_vertices(wall_shape.geometry)
+        actual_verts = np.array(
+            [[0., 0., 0.],
+            [0., 0., 5.],
+            [0., 1., 5.],
+            [0., 1., 0.],
+            [1., 1., 5.],
+            [1., 1., 0.],
+            [1., 0., 5.],
+            [1., 0., 0.]]
+        )
+        self.assertTrue(np.array_equal(actual_verts, wall_verts), f"Beam points not properly created: {wall_verts}")
         # Todo: figure out how to test profiles
     def test_column_creation(self) :
-        self.assertTrue(column_create("test", self.model, 1, "5,0,0", 5.0, "W16X40", "steel"), "Column creation failed")
+        self.assertTrue(column_create("test", self.model, 1, "5,0,0", 5.0, "W16X40", "wood"), "Column creation failed")
         column = self.model.ifcfile.by_type("IfcColumn")[0]
         self.assertIsNotNone(column, "Column access failed")
-        self.assertEqual(ifcopenshell.util.element.get_elements_by_material(self.model.ifcfile, self.model.materials["steel"][0]), {column}, "Material assignment failed")
+        self.assertEqual(ifcopenshell.util.element.get_elements_by_material(self.model.ifcfile, self.model.materials["wood"][0]), {column}, "Material assignment failed")
         placement = ifcopenshell.util.placement.get_local_placement(column.ObjectPlacement)
         self.assertEqual((5.0, 0.0, 0.0), (placement[0][3], placement[1][3], placement[2][3]), "Column placed improperly")
-        self.assertEqual(5.0, column.Representation.Representations[0].Depth, "Column height failed")
+        wall_shape = ifcopenshell.geom.create_shape(ifcopenshell.geom.settings(), column)
+        wall_verts = ifcopenshell.util.shape.get_vertices(wall_shape.geometry)
+        actual_verts = np.array(
+            [[0., 0., 0.],
+            [0., 0., 5.],
+            [0., 1., 5.],
+            [0., 1., 0.],
+            [1., 1., 5.],
+            [1., 1., 0.],
+            [1., 0., 5.],
+            [1., 0., 0.]]
+        )
+        self.assertTrue(np.array_equal(actual_verts, wall_verts), f"Beam points not properly created: {wall_verts}")
         # Todo: figure out how to test profiles
     def test_grid_creation(self) :
         self.assertTrue(grid_create("test", 5.0, 5.0, 5, 5, 10.0, self.model), "Grid creation failed")
