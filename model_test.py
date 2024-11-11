@@ -142,7 +142,16 @@ class ModelTest(unittest.TestCase) :
         self.assertEqual((12.0, 4.0, 0.0), (placement[0][3], placement[1][3], placement[2][3]), "Footing placd improperly")
         footing_shape = ifcopenshell.geom.create_shape(ifcopenshell.geom.settings(), footing)
         footing_verts = ifcopenshell.util.shape.get_vertices(footing_shape.geometry)
-        actual_verts = np.array()
+        actual_verts = np.array(
+            [[-2.5, -2.,   0. ],
+            [-2.5, -2.,   1. ],
+            [ 2.5, -2.,   1. ],
+            [ 2.5, -2.,   0. ],
+            [ 2.5,  2.,   1. ],
+            [ 2.5,  2.,   0., ],
+            [-2.5,  2.,   1., ],
+            [-2.5,  2.,   0. ]]
+        )
         self.assertTrue(np.array_equal(actual_verts, footing_verts), f"Footing points not properly created: {footing_verts}")
 if __name__ == '__main__' :
     unittest.main()

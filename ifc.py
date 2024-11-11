@@ -444,7 +444,7 @@ class IfcModel:
             product_definition_shape = self.ifcfile.create_entity(
                 "IfcProductDefinitionShape", Representations=[shape_representation])
             footing.Representation = product_definition_shape
-            return True, footing.GlobalId
+            return footing
         except Exception as e:
             print(f"An error occurred while creating the footing: {e}")
             raise

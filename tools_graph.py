@@ -541,7 +541,6 @@ def create_isolated_footing(sid: Annotated[str, InjectedToolArg], story_n: int =
         raise
 
 def isolated_footing_create(sid: str, IFC_MODEL: IfcModel, story_n: int, location: tuple, length: float, width: float, thickness: float) :
-    global retrieval_tool
     # Get story information
     if len(IFC_MODEL.building_story_list) < story_n:
         IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
@@ -565,8 +564,6 @@ def isolated_footing_create(sid: str, IFC_MODEL: IfcModel, story_n: int, locatio
 
     # Save structure
     IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
-    retrieval_tool = parse_ifc()
-
     return True
 @tool
 def create_strip_footing(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0), end_point: tuple = (10.0, 0.0, 0.0), width: float = 1.0, depth: float = 1.0) -> bool:
@@ -1046,7 +1043,6 @@ def create_isolated_footing(sid: Annotated[str, InjectedToolArg], story_n: int =
         raise
 
 def isolated_footing_create(sid: str, IFC_MODEL: IfcModel, story_n: int, location: tuple, length: float, width: float, thickness: float) :
-    global retrieval_tool
     # Get story information
     if len(IFC_MODEL.building_story_list) < story_n:
         IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
@@ -1070,7 +1066,6 @@ def isolated_footing_create(sid: str, IFC_MODEL: IfcModel, story_n: int, locatio
 
     # Save structure
     IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
-    retrieval_tool = parse_ifc()
 
     return True
 @tool
