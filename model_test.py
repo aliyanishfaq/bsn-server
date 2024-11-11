@@ -92,5 +92,57 @@ class ModelTest(unittest.TestCase) :
             [ 0.,   0.5,  0. ]]
         )
         self.assertTrue(np.array_equal(actual_verts, wall_verts), f"Wall points not properly created: {wall_verts}")
+    def test_floor_creation(self) :
+        self.assertTrue(floor_create("test", 1, [(0., 0., 0.), (0., 100., 0.), (100., 100., 0.), (100., 0., 0.)], 1.0, self.model), "Floor creation failed")
+        floor = self.model.ifcfile.by_type("IfcSlab")[0]
+        self.assertIsNotNone(floor, "Floor access failed")
+        # self.assertEqual(ifcopenshell.util.element.get_elements_by_material(self.model.ifcfile, self.model.materials["steel"][0]), {floor}, "Material assignment failed")
+        # When materials can be added to floors enable this line (in one of my other branches)
+        placement = ifcopenshell.util.placement.get_local_placement(floor.ObjectPlacement)
+        self.assertEqual((0.0, 0.0, 0.0), (placement[0][3], placement[1][3], placement[2][3]), "Floor placed improperly")
+        floor_shape = ifcopenshell.geom.create_shape(ifcopenshell.geom.settings(), floor)
+        floor_verts = ifcopenshell.util.shape.get_vertices(floor_shape.geometry)
+        actual_verts = np.array(
+            [[0., 0., 0.],
+            [ 0.,  0,  1. ],
+            [ 0.,  100., 1. ],
+            [0.,  100., 0. ],
+            [100.,  100.,  1. ],
+            [100.,   100, 0. ],
+            [100.,   0.,  1. ],
+            [ 100.,   0., 0. ]]
+        )
+        self.assertTrue(np.array_equal(actual_verts, floor_verts), f"Floor points not properly created: {floor_verts}")
+    def test_roof_creation(self) :
+        self.assertTrue(roof_create("test", 1, [(0., 0., 0.), (0., 100., 0.), (100., 100., 0.), (100., 0., 0.)], 1.0, self.model), "Floor creation failed")
+        roof = self.model.ifcfile.by_type("IfcRoof")[0]
+        self.assertIsNotNone(roof, "Roof access failed")
+        # self.assertEqual(ifcopenshell.util.element.get_elements_by_material(self.model.ifcfile, self.model.materials["steel"][0]), {roof}, "Material assignment failed")
+        # When materials can be added to roofs enable this line (in one of my other branches)
+        placement = ifcopenshell.util.placement.get_local_placement(roof.ObjectPlacement)
+        self.assertEqual((0.0, 0.0, 0.0), (placement[0][3], placement[1][3], placement[2][3]), "Roof placed improperly")
+        roof_shape = ifcopenshell.geom.create_shape(ifcopenshell.geom.settings(), roof)
+        roof_verts = ifcopenshell.util.shape.get_vertices(roof_shape.geometry)
+        actual_verts = np.array(
+            [[0., 0., 0.],
+            [ 0.,  0,  1. ],
+            [ 0.,  100., 1. ],
+            [0.,  100., 0. ],
+            [100.,  100.,  1. ],
+            [100.,   100, 0. ],
+            [100.,   0.,  1. ],
+            [ 100.,   0., 0. ]]
+        )
+        self.assertTrue(np.array_equal(actual_verts, roof_verts), f"Roof points not properly created: {roof_verts}")
+    def test_isolated_footing_creation(self) :
+        self.assertTrue(isolated_footing_create("test", self.model, 1, (12.0, 4.0, 0.0), 5.0, 4.0, 1.0), "Isolated footing creation failed")
+        footing = self.model.ifcfile.by_type("IfcFooting")[0]
+        self.assertIsNotNone(footing, "Footing access failed")
+        placement = ifcopenshell.util.placement.get_local_placement(footing.ObjectPlacement)
+        self.assertEqual((12.0, 4.0, 0.0), (placement[0][3], placement[1][3], placement[2][3]), "Footing placd improperly")
+        footing_shape = ifcopenshell.geom.create_shape(ifcopenshell.geom.settings(), footing)
+        footing_verts = ifcopenshell.util.shape.get_vertices(footing_shape.geometry)
+        actual_verts = np.array()
+        self.assertTrue(np.array_equal(actual_verts, footing_verts), f"Footing points not properly created: {footing_verts}")
 if __name__ == '__main__' :
     unittest.main()
