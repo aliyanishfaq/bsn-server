@@ -6,7 +6,7 @@ Refactor tools_graph.py to split out versions of the tools that a. accept an IFC
 return the GlobalId of whatever object is created as prerequisites for testing. (actually unnecessary)
 """
 from ifc import IfcModel
-from tools_graph import session_create, wall_create, floor_create, roof_create, strip_footing_create, isolated_footing_create, beam_create, column_create, grid_create, create_story
+from tools_graph import session_create, wall_create, floor_create, roof_create, strip_footing_create, isolated_footing_create, beam_create, column_create, grid_create, create_story, void_in_wall_create
 import unittest
 import numpy as np
 import ifcopenshell.util.element
@@ -153,5 +153,29 @@ class ModelTest(unittest.TestCase) :
             [-2.5,  2.,   0. ]]
         )
         self.assertTrue(np.array_equal(actual_verts, footing_verts), f"Footing points not properly created: {footing_verts}")
+    def test_void_creation(self) :
+        self.assertTrue(wall_create("test", 1, "0,0,0", "10,0,0", 10.0, 1.0, "steel", self.model), "Wall creation failed")
+        wall = self.model.ifcfile.by_type("IfcWallStandardCase")[0]
+        self.assertIsNotNone(wall, "Wall access failed")
+        self.assertTrue(void_in_wall_create("test", wall.GlobalId, 2.0, 2.0, 1.0, (4.0, 2.0, 2.0), self.model), "Void creation failed")
+        related = self.model.ifcfile.by_type("IfcRelVoidsElement")[0]
+        self.assertIsNotNone(related, "Void access failed")
+        self.assertEqual(wall, related.RelatingBuildingElement, "Void not created on the wall")
+        void = related.RelatedOpeningElement
+        placement = ifcopenshell.util.placement.get_local_placement(void.ObjectPlacement)
+        self.assertEqual((4.0, 2.0, 2.0), (placement[0][3], placement[1][3], placement[2][3]), "Void placed improperly")
+        void_shape = ifcopenshell.geom.create_shape(ifcopenshell.geom.settings(), void)
+        void_verts = ifcopenshell.util.shape.get_vertices(void_shape.geometry)
+        actual_verts = np.array(
+            [[ 0., -1.,  0.],
+            [ 0., -1.,  2.],
+            [ 2., -1.,  2.],
+            [ 2., -1.,  0.],
+            [ 2.,  1.,  2.],
+            [ 2.,  1.,  0.],
+            [ 0.,  1.,  2.],
+            [ 0.,  1.,  0.]]
+        )
+        self.assertTrue(np.array_equal(actual_verts, void_verts), f"Void points not properly created: {void_verts}")
 if __name__ == '__main__' :
     unittest.main()
