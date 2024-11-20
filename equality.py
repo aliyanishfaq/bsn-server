@@ -14,6 +14,8 @@ class IfcEquality :
         self.tests["IfcRoof"] = self.product_equals
         self.tests["IfcBeam"] = self.product_equals
         self.tests["IfcColumn"] = self.product_equals
+        self.tests["ifcOpeningElement"] = self.product_equals
+        self.tests["IfcGrid"] = self.product_equals
     def entity_equals(self, first: ifcopenshell.entity_instance, second: ifcopenshell.entity_instance) :
         if ifcopenshell.util.element.get_type(first).Name == ifcopenshell.util.element.get_type(second).Name :
             return self.tests[ifcopenshell.util.element.get_type(first).Name](first, second)
@@ -31,3 +33,31 @@ class IfcEquality :
         second_edges = ifcopenshell.util.shape.get_edges(second_shape.geometry)
         second_faces = ifcopenshell.util.shape.get_faces(second_shape.geometry)
         return np.array_equal(first_place, second_place) and np.array_equal(first_verts, second_verts) and np.array_equal(first_edges, second_edges) and np.array_equal(first_faces, second_faces)
+    def file_equals(self, first_path: str, second_path: str) :
+        try: 
+            first = ifcopenshell.open(first_path)
+            second = ifcopenshell.open(second_path)
+        except Exception as e:
+            print("Check that the paths to the files are correct")
+            return
+        elements = 0
+        successes = 0
+        incompletes = 0
+        for key in self.tests.keys :
+            first_set = first.by_type(key)
+            second_set = second.by_type(key)
+            for first_element in first_set :
+                elements += 1
+                for second_element in second_set :
+                    if self.entity_equals(first_element, second_element) :
+                        successes += 1
+                        second_set.remove(second_element)
+                        first_set.remove(first_element)
+                        break
+            if len(first_set) > 0 :
+                incompletes += len(first_set)
+            if len(second_set) > 0 :
+                elements += len(second_set)
+                incompletes += len(second_set)
+        percentage = successes / (elements - incompletes)
+        print(f"Score for the files ({first} and {second}): {percentage}\n Total number of elements: {elements}\n Number of elements that could not be successfully compared: {incompletes}")
