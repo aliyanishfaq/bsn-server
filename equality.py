@@ -17,8 +17,10 @@ class IfcEquality :
         self.tests["ifcOpeningElement"] = self.product_equals
         self.tests["IfcGrid"] = self.product_equals
     def entity_equals(self, first: ifcopenshell.entity_instance, second: ifcopenshell.entity_instance) :
-        if ifcopenshell.util.element.get_type(first).Name == ifcopenshell.util.element.get_type(second).Name :
-            return self.tests[ifcopenshell.util.element.get_type(first).Name](first, second)
+        first_type = ifcopenshell.util.element.get_type(first)
+        second_type = ifcopenshell.util.element.get_type(second)
+        if first_type.Name == second_type.Name :
+            return self.tests[first_type.Name](first, second)
         return False
     def product_equals(self, first: ifcopenshell.entity_instance, second: ifcopenshell.entity_instance) :
         first_place = ifcopenshell.util.placement.get_local_placement(first.ObjectPlacement)
@@ -43,13 +45,13 @@ class IfcEquality :
         elements = 0
         successes = 0
         incompletes = 0
-        for key in self.tests.keys :
+        for key in iter(self.tests.keys()) :
             first_set = first.by_type(key)
             second_set = second.by_type(key)
             for first_element in first_set :
                 elements += 1
                 for second_element in second_set :
-                    if self.entity_equals(first_element, second_element) :
+                    if self.tests[key](first_element, second_element) :
                         successes += 1
                         second_set.remove(second_element)
                         first_set.remove(first_element)
