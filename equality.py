@@ -14,8 +14,9 @@ class IfcEquality :
         self.tests["IfcRoof"] = self.product_equals
         self.tests["IfcBeam"] = self.product_equals
         self.tests["IfcColumn"] = self.product_equals
-        self.tests["ifcOpeningElement"] = self.product_equals
+        self.tests["IfcOpeningElement"] = self.product_equals
         self.tests["IfcGrid"] = self.product_equals
+        self.tests["IfcMaterial"] = self.material_equals
     def entity_equals(self, first: ifcopenshell.entity_instance, second: ifcopenshell.entity_instance) :
         first_type = ifcopenshell.util.element.get_type(first)
         second_type = ifcopenshell.util.element.get_type(second)
@@ -27,14 +28,19 @@ class IfcEquality :
         second_place = ifcopenshell.util.placement.get_local_placement(second.ObjectPlacement)
         settings = ifcopenshell.geom.settings()
         first_shape = ifcopenshell.geom.create_shape(settings, first)
+        first_material = ifcopenshell.util.element.get_material(first)
         first_verts = ifcopenshell.util.shape.get_vertices(first_shape.geometry)
         first_edges = ifcopenshell.util.shape.get_edges(first_shape.geometry)
         first_faces = ifcopenshell.util.shape.get_faces(first_shape.geometry)
         second_shape = ifcopenshell.geom.create_shape(settings, second)
+        second_material = ifcopenshell.util.element.get_material(second)
         second_verts = ifcopenshell.util.shape.get_vertices(second_shape.geometry)
         second_edges = ifcopenshell.util.shape.get_edges(second_shape.geometry)
         second_faces = ifcopenshell.util.shape.get_faces(second_shape.geometry)
-        return np.array_equal(first_place, second_place) and np.array_equal(first_verts, second_verts) and np.array_equal(first_edges, second_edges) and np.array_equal(first_faces, second_faces)
+        return np.array_equal(first_place, second_place) and np.array_equal(first_verts, second_verts) and np.array_equal(first_edges, second_edges) and np.array_equal(first_faces, second_faces) and self.material_equals(first_material, second_material)
+    def material_equals(self, first: ifcopenshell.entity_instance, second: ifcopenshell.entity_instance) :
+        if first is not None and second is not None :
+            return first.Name == second.Name
     def file_equals(self, first_path: str, second_path: str) :
         try: 
             first = ifcopenshell.open(first_path)
