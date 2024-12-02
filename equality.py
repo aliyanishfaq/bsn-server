@@ -37,7 +37,18 @@ class IfcEquality :
         second_verts = ifcopenshell.util.shape.get_vertices(second_shape.geometry)
         second_edges = ifcopenshell.util.shape.get_edges(second_shape.geometry)
         second_faces = ifcopenshell.util.shape.get_faces(second_shape.geometry)
-        return np.array_equal(first_place, second_place) and np.array_equal(first_verts, second_verts) and np.array_equal(first_edges, second_edges) and np.array_equal(first_faces, second_faces) and self.material_equals(first_material, second_material)
+        score = 0
+        if np.array_equal(first_place, second_place) :
+            score += 2
+        if np.array_equal(first_verts, second_verts) :
+            score += 2
+        if np.array_equal(first_edges, second_edges) :
+            score += 2
+        if np.array_equal(first_faces, second_faces) :
+            score += 2
+        if self.material_equals(first_material, second_material) :
+            score += 1
+        return score
     def material_equals(self, first: ifcopenshell.entity_instance, second: ifcopenshell.entity_instance) :
         if first is not None and second is not None :
             return first.Name == second.Name
@@ -54,16 +65,35 @@ class IfcEquality :
         for key in iter(self.tests.keys()) :
             first_set = first.by_type(key)
             second_set = second.by_type(key)
+            scores = dict()
             for first_element in first_set :
                 elements += 1
+                scores[first_element] = dict()
                 for second_element in second_set :
-                    if self.tests[key](first_element, second_element) :
-                        successes += 1
+                    element_score = self.tests[key](first_element, second_element)
+                    if element_score == 9 :
+                        successes += 1.0
+                        del scores[first_element]
                         second_set.remove(second_element)
+                        for key in iter(scores.keys) :
+                            if second_element in scores[first_element] :
+                                del scores[key][second_element]
                         first_set.remove(first_element)
                         break
+                    else :
+                        scores[first_element][second_element] = element_score / 9.0
             if len(first_set) > 0 :
-                incompletes += len(first_set)
+                for first_leftover in first_set:
+                    max_score = 0.0
+                    max_element = None
+                    for element in iter(scores[first_element].keys) :
+                        if scores[first_leftover][element] > max_score :
+                            max_score = scores[first_leftover][element]
+                            max_element = element
+                    if max_element is not None :
+                        successes += max_score
+                        for first_ment in first_set:
+                            del first_ment[max_element]
             if len(second_set) > 0 :
                 elements += len(second_set)
                 incompletes += len(second_set)
