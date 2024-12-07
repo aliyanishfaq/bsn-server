@@ -16,7 +16,6 @@ class IfcEquality :
         self.tests["IfcColumn"] = self.product_equals
         self.tests["IfcOpeningElement"] = self.product_equals
         self.tests["IfcGrid"] = self.product_equals
-        self.tests["IfcMaterial"] = self.material_equals
     def entity_equals(self, first: ifcopenshell.entity_instance, second: ifcopenshell.entity_instance) :
         first_type = ifcopenshell.util.element.get_type(first)
         second_type = ifcopenshell.util.element.get_type(second)
@@ -28,12 +27,12 @@ class IfcEquality :
         second_place = ifcopenshell.util.placement.get_local_placement(second.ObjectPlacement)
         settings = ifcopenshell.geom.settings()
         first_shape = ifcopenshell.geom.create_shape(settings, first)
-        first_material = ifcopenshell.util.element.get_material(first)
+        first_material = ifcopenshell.util.element.get_materials(first)
         first_verts = ifcopenshell.util.shape.get_vertices(first_shape.geometry)
         first_edges = ifcopenshell.util.shape.get_edges(first_shape.geometry)
         first_faces = ifcopenshell.util.shape.get_faces(first_shape.geometry)
         second_shape = ifcopenshell.geom.create_shape(settings, second)
-        second_material = ifcopenshell.util.element.get_material(second)
+        second_material = ifcopenshell.util.element.get_materials(second)
         second_verts = ifcopenshell.util.shape.get_vertices(second_shape.geometry)
         second_edges = ifcopenshell.util.shape.get_edges(second_shape.geometry)
         second_faces = ifcopenshell.util.shape.get_faces(second_shape.geometry)
@@ -49,9 +48,14 @@ class IfcEquality :
         if self.material_equals(first_material, second_material) :
             score += 1
         return score
-    def material_equals(self, first: ifcopenshell.entity_instance, second: ifcopenshell.entity_instance) :
-        if first is not None and second is not None :
-            return first.Name == second.Name
+    def material_equals(self, first: list[ifcopenshell.entity_instance], second: list[ifcopenshell.entity_instance]) :
+        for first_material in first :
+            for second_material in second :
+                if first_material.Name == second_material.Name :
+                    first.remove(first_material)
+                    second.remove(second_material)
+                    break
+        return len(first) == 0 and len(second) == 0
     def file_equals(self, first_path: str, second_path: str) :
         try: 
             first = ifcopenshell.open(first_path)
@@ -76,7 +80,7 @@ class IfcEquality :
                         del scores[first_element]
                         second_set.remove(second_element)
                         for key in iter(scores.keys) :
-                            if second_element in scores[first_element] :
+                            if second_element in scores[key] :
                                 del scores[key][second_element]
                         first_set.remove(first_element)
                         break
@@ -86,14 +90,14 @@ class IfcEquality :
                 for first_leftover in first_set:
                     max_score = 0.0
                     max_element = None
-                    for element in iter(scores[first_element].keys) :
-                        if scores[first_leftover][element] > max_score :
+                    for element in second_set :
+                        if element in scores[first_leftover] and scores[first_leftover][element] > max_score :
                             max_score = scores[first_leftover][element]
                             max_element = element
                     if max_element is not None :
                         successes += max_score
                         for first_ment in first_set:
-                            del first_ment[max_element]
+                            del scores[first_ment][max_element]
             if len(second_set) > 0 :
                 elements += len(second_set)
                 incompletes += len(second_set)
