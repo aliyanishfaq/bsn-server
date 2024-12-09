@@ -54,8 +54,12 @@ combined_asgi_app = socketio.ASGIApp(sio, app)
 
 @ sio.event
 async def DOMContentLoaded(sid):
-    await create_on_start()
-    print("Created session start load with sid", sid)
+    try:
+        await create_on_start()
+        print("Created session start load with sid", sid)
+    except Exception as e:
+        logger.exception(f"Error in DOMContentLoaded: {str(e)}")
+        await sio.emit('error', {'message': 'Error initializing session'}, room=sid)
 
 
 @app.post("/upload")
@@ -93,40 +97,52 @@ async def upload_file(file: UploadFile = File(...), sid: str = Form(None)):
 
 @ sio.event
 async def userAction(sid, data):
-    print('User Action recieved')
-    await sio.emit('userAction', data, room=sid)
-    user_command = data['message']
-    curHighlightedObjects = None
-    viewer_message = data.get('highlightedFragments', None)
-    if viewer_message:
-        curHighlightedObjects = global_store.sid_to_highlighted_objects.get(sid, None)
-        print('[userAction] sid -> highlightedObjects', global_store.sid_to_highlighted_objects)
-        print('[userAction] curHighlightedObjects', curHighlightedObjects)
-        global_store.sid_to_highlighted_objects.pop(sid, None)
-    if True:  # user_command.startswith('/')
-        unique_string = f"{user_command}-{time.time()}"
-        unique_hash = "ai-" + \
-            hashlib.sha256(unique_string.encode()).hexdigest()
-        print(f"Generated unique hash: {unique_hash}")
+    try:
+        print('User Action recieved')
+        await sio.emit('userAction', data, room=sid)
+        user_command = data['message']
+        curHighlightedObjects = None
+        viewer_message = data.get('highlightedFragments', None)
+        if viewer_message:
+            curHighlightedObjects = global_store.sid_to_highlighted_objects.get(sid, None)
+            print('[userAction] sid -> highlightedObjects', global_store.sid_to_highlighted_objects)
+            print('[userAction] curHighlightedObjects', curHighlightedObjects)
+            global_store.sid_to_highlighted_objects.pop(sid, None)
+        if True:  # user_command.startswith('/')
+            unique_string = f"{user_command}-{time.time()}"
+            unique_hash = "ai-" + \
+                hashlib.sha256(unique_string.encode()).hexdigest()
+            print(f"Generated unique hash: {unique_hash}")
 
-        await sio.emit('aiActionStart', {'hash':  unique_hash}, room=sid)
-        await model_streamer(sid, data, unique_hash, curHighlightedObjects)
-        await sio.emit('aiActionEnd', {'hash': unique_hash}, room=sid)
+            await sio.emit('aiActionStart', {'hash':  unique_hash}, room=sid)
+            await model_streamer(sid, data, unique_hash, curHighlightedObjects)
+            await sio.emit('aiActionEnd', {'hash': unique_hash}, room=sid)
+    except Exception as e:
+        logger.exception(f"Error in userAction: {str(e)}")
+        await sio.emit('error', {'message': 'Error processing user action'}, room=sid)
 
 
 @ sio.event
 async def highlightedFragments(sid, data):
-    print(f'highlightedFragments recieved {data}')
-    curHighlightedObjects = data.get('highlightedFragments', None)
-    global_store.sid_to_highlighted_objects[sid] = curHighlightedObjects
-    print('[highlightedFragments] curHighlightedObjects added to sid ', sid)
+    try:
+        print(f'highlightedFragments recieved {data}')
+        curHighlightedObjects = data.get('highlightedFragments', None)
+        global_store.sid_to_highlighted_objects[sid] = curHighlightedObjects
+        print('[highlightedFragments] curHighlightedObjects added to sid ', sid)
+    except Exception as e:
+        logger.exception(f"Error in highlightedFragments: {str(e)}")
+        await sio.emit('error', {'message': 'Error processing highlighted fragments'}, room=sid)
 
 @ sio.event
 async def fileChange(sid, data):
-    print('File change received:', data)
-    file_name = data['file_name']
-    print(f"Emitting fileChange event. SID: {sid}, File Name: {file_name}")
-    await sio.emit('fileChange', {'userId': sid, 'file_name': file_name}, room=sid)
+    try:
+        print('File change received:', data)
+        file_name = data['file_name']
+        print(f"Emitting fileChange event. SID: {sid}, File Name: {file_name}")
+        await sio.emit('fileChange', {'userId': sid, 'file_name': file_name}, room=sid)
+    except Exception as e:
+        logger.exception(f"Error in fileChange: {str(e)}")
+        await sio.emit('error', {'message': 'Error processing file change'}, room=sid)
 
 
 @ app.get("/")
@@ -136,7 +152,11 @@ async def health_check():
 
 
 async def send_agent_response(message, sid):
-    await sio.emit('agentResponse', {'message': message}, room=sid)
+    try:
+        await sio.emit('agentResponse', {'message': message}, room=sid)
+    except Exception as e:
+        logger.exception(f"Error in send_agent_response: {str(e)}")
+        await sio.emit('error', {'message': 'Error sending agent response'}, room=sid)
 
 
 def perform_action():

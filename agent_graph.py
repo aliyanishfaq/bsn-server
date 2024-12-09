@@ -22,6 +22,8 @@ from langgraph.checkpoint.memory import MemorySaver
 import re
 from global_store import global_store
 from agent_helpers import inject_sid, get_element_characteristics
+import logging
+import traceback
 
 
 # Constants
@@ -147,13 +149,25 @@ tools = [create_beam, create_column, create_wall, create_session, create_roof, c
 llm_with_tools = create_agent(llm, tools)
 
 
+# Add logging configuration
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+
 async def chat_node(state: State, config: RunnableConfig):
-    messages = state['messages']
-    configuration = config.get('configurable', {})
-    sid = configuration.get('sid', None)
-    response = await llm_with_tools.ainvoke(messages, config)
-    response = inject_sid(response, sid)
-    return {'messages': response}
+    try:
+        messages = state['messages']
+        configuration = config.get('configurable', {})
+        sid = configuration.get('sid', None)
+        response = await llm_with_tools.ainvoke(messages, config)
+        response = inject_sid(response, sid)
+        return {'messages': response}
+    except Exception as e:
+        logger.error(f"Error in chat_node: {str(e)}\n{traceback.format_exc()}")
+        raise
 
 tool_node = ToolNode(tools=tools)
 
@@ -201,21 +215,26 @@ graph = buildsync_graph_builder.compile(checkpointer=memory)
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=15))
 async def stream_with_backoff(sid: str, data: dict, config: dict):
-    user_command = data.get('message')
-    image_data = data.get('imageData')
-    message_type = data.get('messageType')
-    if 'context' in data:
-        context = data.get('context')
-        print("Context: ", context)
-    else:
-        context = None
-    if message_type == 'Image':
-        prefix = re.match(r'data:image/(\w+);base64,(.+)', image_data)
-        try:
-            image_type = f"image/{prefix.group(1)}"
-            encoded_image = prefix.group(2)
-        except Exception as e:
-            raise e
+    try:
+        user_command = data.get('message')
+        image_data = data.get('imageData')
+        message_type = data.get('messageType')
+        
+        if 'context' in data:
+            context = data.get('context')
+            logger.info(f"Context received for sid {sid}: {context}")
+        else:
+            context = None
+
+        if message_type == 'Image':
+            try:
+                prefix = re.match(r'data:image/(\w+);base64,(.+)', image_data)
+                image_type = f"image/{prefix.group(1)}"
+                encoded_image = prefix.group(2)
+            except Exception as e:
+                logger.error(f"Error processing image data: {str(e)}\n{traceback.format_exc()}")
+                raise
+
         # Read the image file in binary mode
         messages = {
             "messages": [
@@ -271,6 +290,10 @@ async def stream_with_backoff(sid: str, data: dict, config: dict):
     async for event in graph.astream_events(messages, config, version='v1'):
         yield event
 
+    except Exception as e:
+        logger.error(f"Error in stream_with_backoff for sid {sid}: {str(e)}\n{traceback.format_exc()}")
+        raise
+
 
 async def model_streamer(sid, data: dict, unique_hash: str, curHighlightedObjects: dict=None):
     try:
@@ -278,82 +301,94 @@ async def model_streamer(sid, data: dict, unique_hash: str, curHighlightedObject
     except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
+        logger.info(f"Created new event loop for sid {sid}")
+
     tools_end = False
     config = {"configurable": {"thread_id": sid, "sid": sid}}
-    if curHighlightedObjects:
-        selected_objects_ids = list(curHighlightedObjects.values())
-        element_characteristics_prompt = "The user has selected the following object(s). Use them in context in responding to user query: \n"
-        for object_id in selected_objects_ids:
-            element_characteristics_prompt += get_element_characteristics(sid, object_id[0])
-        print('[model_streamer] element_characteristics_prompt', element_characteristics_prompt)
-        data['message'] = element_characteristics_prompt + "\n\nUSER QUERY: " + data['message']
-    
-    async for event in stream_with_backoff(sid, data, config):
-        kind = event['event']
-        # print(kind)
-        if kind == 'on_chat_model_stream':
-            try:
-                # print
-                message = event.get('data').get('chunk').content[0].get('text')
-                # print("on_chat_stream", message)
-                if message:
-                    await sio.emit('aiAction', {'word': message, 'hash': unique_hash, 'tools_end': tools_end}, room=sid)
-            except (KeyError, IndexError, TypeError, AttributeError) as e:
-                print(e)
-        elif kind == "on_chat_model_end":
-            content = {'hash': unique_hash}
-            asyncio.run_coroutine_threadsafe(
-                sio.emit('on_prompt_end', content, room=sid), loop)
 
-        elif kind == "on_tool_start":
-            message = f"""Starting tool: {event.get('name')} with inputs:
+    try:
+        if curHighlightedObjects:
+            selected_objects_ids = list(curHighlightedObjects.values())
+            element_characteristics_prompt = "The user has selected the following object(s). Use them in context in responding to user query: \n"
+            for object_id in selected_objects_ids:
+                element_characteristics_prompt += get_element_characteristics(sid, object_id[0])
+            logger.debug(f"Element characteristics prompt for sid {sid}: {element_characteristics_prompt}")
+            data['message'] = element_characteristics_prompt + "\n\nUSER QUERY: " + data['message']
+
+        async for event in stream_with_backoff(sid, data, config):
+            try:
+                kind = event['event']
+                
+                if kind == 'on_chat_model_stream':
+                    try:
+                        message = event.get('data', {}).get('chunk', {}).content[0].get('text')
+                        if message:
+                            await sio.emit('aiAction', {'word': message, 'hash': unique_hash, 'tools_end': tools_end}, room=sid)
+                    except Exception as e:
+                        logger.error(f"Error processing chat model stream for sid {sid}: {str(e)}\n{traceback.format_exc()}")
+
+                elif kind == "on_chat_model_end":
+                    content = {'hash': unique_hash}
+                    asyncio.run_coroutine_threadsafe(
+                        sio.emit('on_prompt_end', content, room=sid), loop)
+
+                elif kind == "on_tool_start":
+                    message = f"""Starting tool: {event.get('name')} with inputs:
 {event.get('data').get('input')}"""
-            await sio.emit('toolStart', {'word': message, 'hash': unique_hash}, room=sid)
+                    await sio.emit('toolStart', {'word': message, 'hash': unique_hash}, room=sid)
 
-        elif kind == "on_tool_end":
-            tools_end = True
-            print(f"Done tool: {event.get('name')}")
-            print(f"Tool output was: {event.get('data').get('output')}")
-            message = f"{event.get('name')} execution successfully completed"
-            if bool(event.get('data').get('output')) is True:
-                message = f"""{
-                    event.get('name')} execution successfully completed"""
-                await sio.emit('toolEnd', {'word': message, 'hash': unique_hash}, room=sid)
-            else:
-                message = f"{event.get('name')} execution failed"
-            print("emitting fileChange")
-            await sio.emit('fileChange', {'userId': 'BuildSync', 'message': 'A new change has been made to the file', 'file_name': f"public/{sid}/canvas.ifc"}, room=sid)
-            print("fileChange emitted")
-            # print('file contents: ', open('public/canvas.ifc', 'rb').read())
-        elif kind == "on_chain_start":
-            # print("event_data", event['data'])
-            try:
-                messages = event['data']['input']['messages']
-                if type(messages) == list and type(messages[-1]) == AIMessage:
-                    # print("yes, is AIMessage", messages[-1])
-                    message_object = messages[-1].content
-                    # print("message object", message_object)
-                    message = message_object[0]['text']
-                    # print("on_chain_start message", message)
-                    await sio.emit('chainStart', {'word': message, 'hash': unique_hash, 'tools_end': tools_end}, room=sid)
-            except (KeyError, IndexError, TypeError, AttributeError) as e:
-                print(e)
-        elif kind == "on_chain_end":
-            # print("event_data", event['data'])
-            messages = event['data']['output']
-            # print("messages chain_end", messages)
-            try:
-                if type(messages) == dict and "chat" in messages.keys():
-                    # print("yes, is AIMessage", messages[-1])
-                    # AIMessage()
-                    ai_message_object = messages["chat"]["messages"]
-                    message_content = ai_message_object.content
-                    print("message object", message_content)
-                    message = message_content[0]['text']
-                    print("on_chain_end message", message)
-                    await sio.emit('chainStart', {'word': message, 'hash': unique_hash, 'tools_end': tools_end}, room=sid)
-            except (KeyError, IndexError, TypeError, AttributeError) as e:
-                print(e)
-        elif kind == "on_chain_stream":
-            # print(event)
-            pass
+                elif kind == "on_tool_end":
+                    tools_end = True
+                    print(f"Done tool: {event.get('name')}")
+                    print(f"Tool output was: {event.get('data').get('output')}")
+                    message = f"{event.get('name')} execution successfully completed"
+                    if bool(event.get('data').get('output')) is True:
+                        message = f"""{
+                            event.get('name')} execution successfully completed"""
+                        await sio.emit('toolEnd', {'word': message, 'hash': unique_hash}, room=sid)
+                    else:
+                        message = f"{event.get('name')} execution failed"
+                    print("emitting fileChange")
+                    await sio.emit('fileChange', {'userId': 'BuildSync', 'message': 'A new change has been made to the file', 'file_name': f"public/{sid}/canvas.ifc"}, room=sid)
+                    print("fileChange emitted")
+                    # print('file contents: ', open('public/canvas.ifc', 'rb').read())
+                elif kind == "on_chain_start":
+                    # print("event_data", event['data'])
+                    try:
+                        messages = event['data']['input']['messages']
+                        if type(messages) == list and type(messages[-1]) == AIMessage:
+                            # print("yes, is AIMessage", messages[-1])
+                            message_object = messages[-1].content
+                            # print("message object", message_object)
+                            message = message_object[0]['text']
+                            # print("on_chain_start message", message)
+                            await sio.emit('chainStart', {'word': message, 'hash': unique_hash, 'tools_end': tools_end}, room=sid)
+                    except (KeyError, IndexError, TypeError, AttributeError) as e:
+                        print(e)
+                elif kind == "on_chain_end":
+                    # print("event_data", event['data'])
+                    messages = event['data']['output']
+                    # print("messages chain_end", messages)
+                    try:
+                        if type(messages) == dict and "chat" in messages.keys():
+                            # print("yes, is AIMessage", messages[-1])
+                            # AIMessage()
+                            ai_message_object = messages["chat"]["messages"]
+                            message_content = ai_message_object.content
+                            print("message object", message_content)
+                            message = message_content[0]['text']
+                            print("on_chain_end message", message)
+                            await sio.emit('chainStart', {'word': message, 'hash': unique_hash, 'tools_end': tools_end}, room=sid)
+                    except (KeyError, IndexError, TypeError, AttributeError) as e:
+                        print(e)
+                elif kind == "on_chain_stream":
+                    # print(event)
+                    pass
+
+            except Exception as e:
+                logger.error(f"Error processing event for sid {sid}: {str(e)}\n{traceback.format_exc()}")
+                continue
+
+    except Exception as e:
+        logger.error(f"Error in model_streamer for sid {sid}: {str(e)}\n{traceback.format_exc()}")
+        raise
