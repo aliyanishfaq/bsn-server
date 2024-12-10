@@ -211,7 +211,9 @@ buildsync_graph_builder.add_conditional_edges(
 
 # memory = AsyncSqliteSaver.from_conn_string(":memory:", )
 memory = MemorySaver()
-graph = buildsync_graph_builder.compile(checkpointer=memory)
+graph = buildsync_graph_builder.compile(
+    checkpointer=memory
+)
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=15))
 async def stream_with_backoff(sid: str, data: dict, config: dict):
@@ -231,64 +233,65 @@ async def stream_with_backoff(sid: str, data: dict, config: dict):
                 prefix = re.match(r'data:image/(\w+);base64,(.+)', image_data)
                 image_type = f"image/{prefix.group(1)}"
                 encoded_image = prefix.group(2)
+                
+                # Read the image file in binary mode
+                messages = {
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "image",
+                                    "source": {
+                                        "type": "base64",
+                                        "media_type": image_type,
+                                        "data": encoded_image,
+                                    },
+                                },
+                                {
+                                    "type": "text",
+                                    "text": user_command
+                                }
+                            ],
+                        }]
+                }
             except Exception as e:
                 logger.error(f"Error processing image data: {str(e)}\n{traceback.format_exc()}")
                 raise
+        elif context:
+            messages = {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": context
+                            }
+                        ],
+                    },
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": user_command
+                            }
+                        ],
+                    }]
+            }
+        else:
+            messages = {"messages": [{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": user_command
+                    }
+                ]}]}
 
-        # Read the image file in binary mode
-        messages = {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": image_type,
-                                "data": encoded_image,
-                            },
-                        },
-                        {
-                            "type": "text",
-                            "text": user_command
-                        }
-                    ],
-                }]
-        }
-    elif context:
-        messages = {
-            "messages": [
-                {
-                    "role": "system",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": context
-                        }
-                    ],
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": user_command
-                        }
-                    ],
-                }]
-        }
-    else:
-        messages = {"messages": [{
-            "role": "user",
-            "content": [
-                {
-                    "type": "text",
-                    "text": user_command
-                }
-            ]}]}
-    async for event in graph.astream_events(messages, config, version='v1'):
-        yield event
+        async for event in graph.astream_events(messages, config, version='v1'):
+            yield event
 
     except Exception as e:
         logger.error(f"Error in stream_with_backoff for sid {sid}: {str(e)}\n{traceback.format_exc()}")
@@ -321,9 +324,14 @@ async def model_streamer(sid, data: dict, unique_hash: str, curHighlightedObject
                 
                 if kind == 'on_chat_model_stream':
                     try:
-                        message = event.get('data', {}).get('chunk', {}).content[0].get('text')
-                        if message:
-                            await sio.emit('aiAction', {'word': message, 'hash': unique_hash, 'tools_end': tools_end}, room=sid)
+                        chunk = event.get('data', {}).get('chunk', {})
+                        if hasattr(chunk, 'content') and chunk.content:
+                            if isinstance(chunk.content, list) and chunk.content:
+                                message = chunk.content[0].get('text', '')
+                            else:
+                                message = str(chunk.content)
+                            if message:
+                                await sio.emit('aiAction', {'word': message, 'hash': unique_hash, 'tools_end': tools_end}, room=sid)
                     except Exception as e:
                         logger.error(f"Error processing chat model stream for sid {sid}: {str(e)}\n{traceback.format_exc()}")
 

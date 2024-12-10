@@ -601,7 +601,7 @@ def create_strip_footing(sid: Annotated[str, InjectedToolArg], story_n: int = 1,
 
         # Save structure
         IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
-        retrieval_tool = parse_ifc()
+        # retrieval_tool = parse_ifc()
 
         return True
     except Exception as e:
@@ -628,11 +628,8 @@ def create_void_in_wall(sid: Annotated[str, InjectedToolArg], host_wall_id=None,
             create_session(sid)
             IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
 
-        print(
-            f"host_wall_id: {host_wall_id}, width: {width}, height: {height}, depth: {depth}, void_location: {void_location}")
         # Retrieve wall with element ID
         walls = IFC_MODEL.ifcfile.by_type("IfcWall")
-        print("All of the walls: ", walls)
         host_wall = None
         for wall in walls:
             if str(wall.GlobalId).strip() == str(host_wall_id).strip():
@@ -642,24 +639,29 @@ def create_void_in_wall(sid: Annotated[str, InjectedToolArg], host_wall_id=None,
         if host_wall is None:
             raise ValueError(f"No wall found with GlobalId: {host_wall_id}")
 
-        # Ensure void_location is a tuple of (X, Y, Z)
+        # Convert void_location to list of floats
         try:
-            void_location = tuple(float(coord) for coord in void_location)
-            print(
-                f"Void Location: {void_location}, Void Location type: {type(void_location)}")
+            # Handle both list and tuple inputs
+            if isinstance(void_location, (list, tuple)):
+                void_location = [float(coord) for coord in void_location]
+            else:
+                void_location = [float(x) for x in str(void_location).strip('()[]').split(',')]
+            print(f"Void Location: {void_location}, Void Location type: {type(void_location)}")
         except:
-            print(
-                f"Cannot convert void_location to correct tuples. Original void_location: {void_location}")
-            raise ValueError
+            print(f"Cannot convert void_location to correct format. Original void_location: {void_location}")
+            raise ValueError("Invalid void_location format")
 
         # Create void element
         IFC_MODEL.create_void_in_wall(
-            wall=host_wall, width=width, height=height, depth=depth, void_location=void_location)
+            wall=host_wall, 
+            width=float(width), 
+            height=float(height), 
+            depth=float(depth), 
+            void_location=void_location
+        )
 
-        # # Save structure
+        # Save structure
         IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
-        # retrieval_tool = parse_ifc()
-
         print("Void created and committed to the IFC file successfully.")
         return True
     except Exception as e:
@@ -1000,110 +1002,6 @@ def create_roof(sid: Annotated[str, InjectedToolArg], story_n: int = 1, point_li
 
 
 @tool
-def create_isolated_footing(sid: Annotated[str, InjectedToolArg], story_n: int = 1, location: tuple = (0.0, 0.0, 0.0), length: float = 10.0, width: float = 10.0, thickness: float = 1.0) -> bool:
-    """
-    Creates a shallow isolated structural foundation footing on the specified story.
-
-    Parameters:
-    - story_n (int): The story number where the footing will be created.
-    - location (tuple): The (x, y, z) coordinates of the footing's location.
-    - length (float): The length of the footing.
-    - width (float): The width of the footing.
-    - thickness (float): The thickness of the footing.
-    """
-    global retrieval_tool
-    try:
-        IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
-        if IFC_MODEL is None:
-            print("No IFC model found for the given session.")
-            create_session(sid)
-            IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
-
-        # Get story information
-        if len(IFC_MODEL.building_story_list) < story_n:
-            IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
-
-        story = IFC_MODEL.building_story_list[story_n - 1]
-        elevation = (story.Elevation)
-        story_placement = story.ObjectPlacement
-        print(f"elevation: {elevation}")
-
-        # Adjust location Z-coordinate by adding the story's elevation
-        location = (location[0], location[1], location[2] + elevation)
-
-        # IFC model information
-        owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
-
-        # Call the function in ifc.py to create the footing
-        footing = IFC_MODEL.create_isolated_footing(
-            location, length, width, thickness)
-        IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-        ), owner_history, "Building story Container", None, [footing], story)
-
-        # Save structure
-        IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
-        retrieval_tool = parse_ifc()
-
-        return True
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        raise
-
-
-@tool
-def create_strip_footing(sid: Annotated[str, InjectedToolArg], story_n: int = 1, start_point: tuple = (0.0, 0.0, 0.0), end_point: tuple = (10.0, 0.0, 0.0), width: float = 1.0, depth: float = 1.0) -> bool:
-    """
-    Creates a continuous footing (strip footing) on the specified story.
-
-    Parameters:
-    - story_n (int): The story number where the footing will be created.
-    - start_point (tuple): The (x, y, z) coordinates of the start point of the footing.
-    - end_point (tuple): The (x, y, z) coordinates of the end point of the footing.
-    - width (float): The width of the footing.
-    - depth (float): The depth of the footing.
-    """
-    global retrieval_tool
-    try:
-        IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
-        if IFC_MODEL is None:
-            print("No IFC model found for the given session.")
-            create_session(sid)
-            IFC_MODEL = global_store.sid_to_ifc_model.get(sid, None)
-
-        # Get story information
-        if len(IFC_MODEL.building_story_list) < story_n:
-            IFC_MODEL.create_building_stories(0.0, f"Level {story_n}")
-
-        story = IFC_MODEL.building_story_list[story_n - 1]
-        elevation = (story.Elevation)
-        story_placement = story.ObjectPlacement
-        print(f"elevation: {elevation}")
-
-        # Adjust start and end points Z-coordinate by adding the story's elevation
-        start_point = (start_point[0], start_point[1],
-                       start_point[2] + elevation)
-        end_point = (end_point[0], end_point[1], end_point[2] + elevation)
-
-        # IFC model information
-        owner_history = IFC_MODEL.ifcfile.by_type("IfcOwnerHistory")[0]
-
-        # Call the function in ifc.py to create the continuous footing
-        footing = IFC_MODEL.create_strip_footing(
-            start_point, end_point, width, depth)
-        IFC_MODEL.ifcfile.createIfcRelContainedInSpatialStructure(IFC_MODEL.create_guid(
-        ), owner_history, "Building story Container", None, [footing], story)
-
-        # Save structure
-        IFC_MODEL.save_ifc(f"public/{sid}/canvas.ifc")
-        # retrieval_tool = parse_ifc()
-
-        return True
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        raise
-
-
-@tool
 def search_canvas(sid: Annotated[str, InjectedToolArg], search_query: str, search_file: str = 'canvas.ifc') -> str:
     """
     Provided a user query, this function will search the IFC file and return the relevant objects in a string format.
@@ -1274,78 +1172,6 @@ async def step_by_step_planner(sid: Annotated[str, InjectedToolArg], user_reques
 
     Returns:
     - step_by_step_plan (str): The step by step plan to perform the user's request.
-    """
-    architect_prompt = f"""
-    You are an experienced architect who can design floor/building plans based on the user’s needs. You will use your extensive architectural knowledge to expand and supplement the user’s original description and ultimately express your design in structured text format.
-    Depending on the user’s specific needs, try to include in the output the starting and ending points of each wall, the location of windows and doors (offset relative to the start of the wall), the boundaries of interior rooms/functional areas, and the position and geometric details of other components required for a complete building.
-    Please refer to basic architectural rules, such as:
-    Foundation: Ensure a solid foundation slab that can support the entire structure. The walls, slabs, and roof must be designed to distribute weight evenly to the foundation.
-    Wall Configuration: Arrange walls to define the building's perimeter and internal spaces. Ensure that load-bearing walls are adequately spaced and placed to distribute the weight of the upper floors. Ensure that wall elevations properly match for each floor.
-    Slab Design: Place slabs for each floor. They should be leveled and supported by the walls, providing stability and separating different floors.
-    Roof Construction: Design the roof to cover the entire building, protecting it from weather elements.
-    Window Placement: Install windows strategically to provide natural light and ventilation to rooms. Ensure window locations are proportionate to the room size.
-    Door Placement: Position doors for easy access to different rooms and areas. The main entrance to the building should be prominent and easy to locate, with interior doors facilitating smooth movement.
-    Interior Layout: Organize and define the interior room layout logically. Use interior walls to separate different functional rooms and ensure easy flow between them with appropriately placed doors.
-    Structural Integrity: Ensure all elements (walls, slabs, roof) are securely connected and stable.
-    Compliance: Avoid clashing/overlapping building components, such as overlapping partitions between different areas and overlapping window and door locations. Adjacent rooms can share internal partitions. Rooms can also utilize exterior walls.
-    Make your design spatially and geometrically rational. Use feet units. Minimize other prose.
-    Here is a sample conversation:
-    User: I want to build an office building. I want the building to have 3 floors, and the layout of each floor to be the same. Each floor has 6 rooms, 3 on each side, separated by a 10-foot-wide corridor. Each room has a door and a window. The door to each room should be on the wall on one side of the corridor, and the window should be on the outside wall of the building.
-    Architect: “3-Floor Office Building Design”
-    Foundation:
-    Rectangular foundation slab: 98.43 ft x 49.21 ft
-    Ground Floor Plan:
-    1. Perimeter Walls:
-    Wall A: (0,0) to (98.43,0)
-    Wall B: (98.43,0) to (98.43,49.21)
-    Wall C: (98.43,49.21) to (0,49.21)
-    Wall D: (0,49.21) to (0,0)
-    2. Functional Areas:
-    Boundary in format (x_min,y_min), (x_max,y_max):
-    Room 1: (0,0), (32.81,19.69)
-    Room 2: (32.81,0), (65.62,19.69)
-    Room 3: (65.62,0), (98.43,19.69)
-    Room 4: (0,29.53), (32.81,49.21)
-    Room 5: (32.81,29.53), (65.62,49.21)
-    Room 6: (65.62,29.53), (98.43,49.21)
-    Central corridor: (0,19.69), (98.43,29.53)
-    3. Internal Corridor Walls:
-    Wall E: (0,19.69) to (98.43,19.69)
-    Wall F: (0,29.53) to (98.43,29.53)
-    4. Room Dividing Walls:
-    Wall G: (32.81,0) to (32.81,19.69)
-    Wall H: (65.62,0) to (65.62,19.69)
-    Wall I: (32.81,29.53) to (32.81,49.21)
-    Wall J: (65.62,29.53) to (65.62,49.21)
-    5. Doors:
-    Insertion offset of each room door relative to the start of the corresponding wall:
-    Room 1 door on corridor wall E: 16.40
-    Room 2 door on corridor wall E: 49.21
-    Room 3 door on corridor wall E: 82.02
-    Room 4 door on corridor wall F: 16.40
-    Room 5 door on corridor wall F: 49.21
-    Room 6 door on corridor wall F: 82.02
-    6. Windows:
-    Insertion offset of each room window relative to the start of the corresponding wall:
-    Room 1 window on wall A: 49.21
-    Room 2 window on wall A: 82.02
-    Room 3 window on wall A: 114.83
-    Room 4 window on wall C: 16.40
-    Room 5 window on wall C: 49.21
-    Room 6 window on wall C: 82.02
-    First Floor Plan:
-    Identical to Ground Floor Plan
-    Second Floor Plan:
-    Identical to Ground Floor Plan
-    Roof Construction:
-    Roof covering entire building: (0,0) to (98.43,0) to (98.43,49.21) to (0,49.21) to (0,0).
-    Slab Design:
-    Create slabs for each floor supported by perimeter and internal walls. Slabs covering the entire floor area with the same dimensions as the foundation.
-    Summary:
-    Building dimensions: 98.43 ft x 49.21 ft x 3 floors.
-    Each floor has 6 rooms, 3 on each side of a central corridor.
-    The user now provides the following instruction; please generate the plan as an architect. Let’s think step by step.
-    User Request: {user_request}
     """
     global groq_client
     try:
