@@ -1,4 +1,7 @@
-# BuildSync 🏗️
+<div align="center">
+  <img src="/assets/BS_logo.png" alt="BuildSync Logo" width="200px">
+  <h1>BuildSync</h1>
+</div>
 
 Natural Language-Driven Building Information Modeling (BIM) Generation
 
