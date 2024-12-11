@@ -16,7 +16,6 @@ BuildSync transforms natural language descriptions into detailed architectural m
 - **Comprehensive Component Support**: 
   - Walls, beams, and columns
   - Multi-story buildings
-  - Grid systems
   - Material specifications
 - **Smart Search & Modification**: Easily find and update building elements
 - **Flexible Model Management**: Session-based model storage and manipulation
@@ -141,9 +140,6 @@ search_canvas(sid, "find leftmost wall")
 ```python
 # Delete specific elements
 delete_element(sid, element_id)
-
-# Update element properties
-update_element(sid, element_id, new_properties)
 ```
 
 ## 🤝 Contributing
